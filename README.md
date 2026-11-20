@@ -36,7 +36,7 @@ Shipment email notifications use a Vercel serverless function and Hostinger SMTP
 | `SMTP_FROM` | Sender address; normally the same as `SMTP_USER` |
 | `PUBLIC_SITE_URL` | Public website URL used for tracking links in shipment emails |
 
-When an administrator creates a shipment or changes its status, Vercel verifies the signed-in Supabase administrator and sends separate notifications to the sender and receiver. Both email fields are required for new shipments. If the shipment saves but email delivery fails, the admin dashboard displays an error; the shipment remains saved, so verify SMTP settings before relying on notifications.
+When an administrator creates or edits shipment details, or changes its status, Vercel verifies the signed-in Supabase administrator and sends separate notifications to the sender and receiver. Both email fields are required for new shipments. If the shipment saves but email delivery fails, the admin dashboard displays an error; the shipment remains saved, so verify SMTP settings before relying on notifications.
 
 ## Supabase setup
 

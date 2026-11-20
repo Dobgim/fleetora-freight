@@ -6,6 +6,7 @@ import {
   createShipment,
   fetchShipments,
   SPEED_KMH,
+  updateShipmentDetails,
   updateShipmentStatus,
   type Shipment,
   type ShipmentMode,
@@ -147,6 +148,7 @@ export default function AdminDashboard({ user, onSignOut }: { user: User; onSign
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [createdTrackingId, setCreatedTrackingId] = useState<string | null>(null);
+  const [editingShipmentId, setEditingShipmentId] = useState<string | null>(null);
   const [shipmentForm, setShipmentForm] = useState<ShipmentFormState>(newShipmentForm);
 
   useEffect(() => {
@@ -225,7 +227,35 @@ export default function AdminDashboard({ user, onSignOut }: { user: User; onSign
   function openNewShipmentModal() {
     setFormError("");
     setCreatedTrackingId(null);
+    setEditingShipmentId(null);
     setShipmentForm(newShipmentForm());
+    setModalOpen(true);
+  }
+
+  function openEditShipmentModal(shipment: Shipment) {
+    setFormError("");
+    setCreatedTrackingId(null);
+    setEditingShipmentId(shipment.dbId);
+    setShipmentForm({
+      senderName: shipment.senderName,
+      senderEmail: shipment.senderEmail,
+      senderPhone: shipment.senderPhone,
+      recipientName: shipment.recipient,
+      recipientEmail: shipment.recipientEmail,
+      recipientPhone: shipment.recipientPhone,
+      origin: shipment.originName,
+      destination: shipment.destinationName,
+      mode: shipment.mode,
+      weightKg: String(shipment.weightKg),
+      status: shipment.status,
+      shipDate: shipment.shipDate,
+      expectedDeliveryDate: shipment.estimatedDelivery,
+      expectedDeliveryTime: shipment.expectedDeliveryTime,
+      pieceType: shipment.pieceType,
+      senderAddress: shipment.senderAddress,
+      recipientAddress: shipment.recipientAddress,
+      packageDescription: shipment.packageDescription,
+    });
     setModalOpen(true);
   }
 
@@ -249,7 +279,7 @@ export default function AdminDashboard({ user, onSignOut }: { user: User; onSign
         geocodeShipmentLocation(form.origin.trim()),
         geocodeShipmentLocation(form.destination.trim()),
       ]);
-      const { shipment: created, notificationError } = await createShipment({
+      const shipmentInput = {
         recipient,
         recipientEmail: form.recipientEmail.trim(),
         origin: { name: form.origin.trim(), position: originPosition },
@@ -268,8 +298,13 @@ export default function AdminDashboard({ user, onSignOut }: { user: User; onSign
         senderAddress: form.senderAddress.trim(),
         recipientAddress: form.recipientAddress.trim(),
         packageDescription: form.packageDescription.trim(),
-      });
-      setShipments((current) => [created, ...current.filter((shipment) => shipment.dbId !== created.dbId)]);
+      };
+      const { shipment: created, notificationError } = editingShipmentId
+        ? await updateShipmentDetails(editingShipmentId, shipmentInput)
+        : await createShipment(shipmentInput);
+      setShipments((current) => editingShipmentId
+        ? current.map((shipment) => shipment.dbId === created.dbId ? created : shipment)
+        : [created, ...current.filter((shipment) => shipment.dbId !== created.dbId)]);
       setShipmentForm(newShipmentForm());
       setStatusFilter("All shipments");
       setSearch("");
@@ -280,7 +315,7 @@ export default function AdminDashboard({ user, onSignOut }: { user: User; onSign
         setFormError(`Shipment saved, but the email notifications failed: ${notificationError}`);
       }
     } catch (error) {
-      console.error("Could not create shipment", error);
+      console.error(editingShipmentId ? "Could not update shipment" : "Could not create shipment", error);
       setFormError(error instanceof Error ? error.message : "Couldn't save the shipment. Please try again.");
     } finally {
       setSaving(false);
@@ -403,7 +438,7 @@ export default function AdminDashboard({ user, onSignOut }: { user: User; onSign
               <button className="table-search-mobile" onClick={() => document.querySelector<HTMLInputElement>(".admin-search input")?.focus()} aria-label="Search shipments"><Icon name="search" size={17} /></button>
             </div>
             <div className="table-scroll"><table className="shipment-table"><thead><tr><th>TRACKING ID</th><th>CUSTOMER</th><th>ROUTE</th><th>SERVICE</th><th>ETA</th><th>STATUS</th><th aria-label="Actions" /></tr></thead>
-              <tbody>{filteredShipments.length ? filteredShipments.map((shipment) => <tr key={shipment.id}><td><a className="tracking-id" href={`/track?code=${encodeURIComponent(shipment.id)}`} target="_blank" rel="noreferrer">{shipment.id}</a></td><td><span className="customer-cell"><i>{shipment.initials}</i><b>{shipment.recipient}</b></span></td><td className="route-cell">{shipment.route}</td><td><span className="service-cell"><i className={`service-mark ${shipment.mode.startsWith("Air") ? "air-mark" : shipment.mode.startsWith("Road") ? "road-mark" : ""}`} />{shipment.mode}</span></td><td className="eta-cell">{shipment.date}</td><td><span className={`shipment-status ${shipment.status.toLowerCase().replace(" ", "-")}`}><i />{shipment.status}</span></td><td><div className="row-action-wrap"><button className="row-more" aria-label={`Change status for ${shipment.id}`} aria-expanded={statusMenuId === shipment.id} onClick={() => setStatusMenuId(statusMenuId === shipment.id ? null : shipment.id)}>Change</button>{statusMenuId === shipment.id && <div className="row-status-menu" role="menu" aria-label={`Change status for ${shipment.id}`}>{(["In transit", "On hold", "Delayed", "Delivered", "Pending"] as ShipmentStatus[]).map((status) => <button key={status} role="menuitem" className={status === shipment.status ? "current" : ""} onClick={() => void changeShipmentStatus(shipment, status)}><i className={`status-menu-dot ${status.toLowerCase().replace(" ", "-")}`} />{status}{status === shipment.status && <span>Current</span>}</button>)}</div>}</div></td></tr>) : <tr><td className="empty-row" colSpan={7}>No shipments match your search.</td></tr>}</tbody>
+              <tbody>{filteredShipments.length ? filteredShipments.map((shipment) => <tr key={shipment.id}><td><a className="tracking-id" href={`/track?code=${encodeURIComponent(shipment.id)}`} target="_blank" rel="noreferrer">{shipment.id}</a></td><td><span className="customer-cell"><i>{shipment.initials}</i><b>{shipment.recipient}</b></span></td><td className="route-cell">{shipment.route}</td><td><span className="service-cell"><i className={`service-mark ${shipment.mode.startsWith("Air") ? "air-mark" : shipment.mode.startsWith("Road") ? "road-mark" : ""}`} />{shipment.mode}</span></td><td className="eta-cell">{shipment.date}</td><td><span className={`shipment-status ${shipment.status.toLowerCase().replace(" ", "-")}`}><i />{shipment.status}</span></td><td><div className="row-action-wrap"><button className="row-more" onClick={() => openEditShipmentModal(shipment)}>Edit</button><button className="row-more" aria-label={`Change status for ${shipment.id}`} aria-expanded={statusMenuId === shipment.id} onClick={() => setStatusMenuId(statusMenuId === shipment.id ? null : shipment.id)}>Change</button>{statusMenuId === shipment.id && <div className="row-status-menu" role="menu" aria-label={`Change status for ${shipment.id}`}>{(["In transit", "On hold", "Delayed", "Delivered", "Pending"] as ShipmentStatus[]).map((status) => <button key={status} role="menuitem" className={status === shipment.status ? "current" : ""} onClick={() => void changeShipmentStatus(shipment, status)}><i className={`status-menu-dot ${status.toLowerCase().replace(" ", "-")}`} />{status}{status === shipment.status && <span>Current</span>}</button>)}</div>}</div></td></tr>) : <tr><td className="empty-row" colSpan={7}>No shipments match your search.</td></tr>}</tbody>
             </table></div>
             <div className="table-footer"><span>Showing <b>{filteredShipments.length ? 1 : 0}–{filteredShipments.length}</b> of <b>{shipments.length}</b> shipments</span><div><button disabled aria-label="Previous page">‹</button><button className="current-page">1</button><button disabled aria-label="Next page">›</button></div></div>
           </section>}
@@ -419,7 +454,7 @@ export default function AdminDashboard({ user, onSignOut }: { user: User; onSign
       {modalOpen && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setModalOpen(false); }}>
         <section className="shipment-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
           <div className="modal-heading">
-            <div><h2 id="modal-title">{createdTrackingId ? "Shipment created" : "Create New Shipment"}</h2></div>
+            <div><h2 id="modal-title">{createdTrackingId ? (editingShipmentId ? "Shipment updated" : "Shipment created") : editingShipmentId ? "Edit Shipment" : "Create New Shipment"}</h2></div>
             <button className="icon-button" aria-label="Close" onClick={() => setModalOpen(false)}><Icon name="close" /></button>
           </div>
           {createdTrackingId ? <div className="shipment-created-confirmation" role="status" aria-live="polite">
@@ -442,7 +477,7 @@ export default function AdminDashboard({ user, onSignOut }: { user: User; onSign
               <label>Origin *<input required value={shipmentForm.origin} onChange={(event) => setShipmentForm({ ...shipmentForm, origin: event.target.value })} placeholder="City, Country" /></label>
               <label>Destination *<input required value={shipmentForm.destination} onChange={(event) => setShipmentForm({ ...shipmentForm, destination: event.target.value })} placeholder="City, Country" /></label>
               <label>Weight (kg) *<input type="number" min="0" step="0.1" required value={shipmentForm.weightKg} onChange={(event) => setShipmentForm({ ...shipmentForm, weightKg: event.target.value })} placeholder="0.0" /></label>
-              <label>Status *<select required value={shipmentForm.status} onChange={(event) => setShipmentForm({ ...shipmentForm, status: event.target.value as ShipmentStatus })}><option>Pending</option><option>In transit</option><option>Delivered</option><option>Delayed</option><option>On hold</option></select></label>
+              <label>Status *<select required disabled={Boolean(editingShipmentId)} value={shipmentForm.status} onChange={(event) => setShipmentForm({ ...shipmentForm, status: event.target.value as ShipmentStatus })}><option>Pending</option><option>In transit</option><option>Delivered</option><option>Delayed</option><option>On hold</option></select></label>
               <label>Ship date *<input type="date" required value={shipmentForm.shipDate} onChange={(event) => setShipmentForm({ ...shipmentForm, shipDate: event.target.value })} /></label>
               <label>Expected delivery date<input type="date" value={shipmentForm.expectedDeliveryDate} onChange={(event) => setShipmentForm({ ...shipmentForm, expectedDeliveryDate: event.target.value })} /></label>
               <label>Expected delivery time<input type="time" value={shipmentForm.expectedDeliveryTime} onChange={(event) => setShipmentForm({ ...shipmentForm, expectedDeliveryTime: event.target.value })} /></label>
@@ -452,7 +487,7 @@ export default function AdminDashboard({ user, onSignOut }: { user: User; onSign
               <label className="shipment-form-full">Package description<textarea rows={3} value={shipmentForm.packageDescription} onChange={(event) => setShipmentForm({ ...shipmentForm, packageDescription: event.target.value })} placeholder="Describe the package contents..." /></label>
             </div>
             {formError && <p className="admin-auth-error" role="alert">{formError}</p>}
-            <div className="modal-form-actions"><button className="button-secondary" type="button" onClick={() => setModalOpen(false)}>Cancel</button><button className="button-primary" type="submit" disabled={saving}><Icon name="plus" size={17} /> {saving ? "Saving…" : "Save & Create Shipment"}</button></div>
+            <div className="modal-form-actions"><button className="button-secondary" type="button" onClick={() => setModalOpen(false)}>Cancel</button><button className="button-primary" type="submit" disabled={saving}><Icon name="plus" size={17} /> {saving ? "Saving…" : editingShipmentId ? "Save Changes" : "Save & Create Shipment"}</button></div>
           </form>}
         </section>
       </div>}

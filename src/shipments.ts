@@ -38,6 +38,8 @@ export type Shipment = {
   senderAddress: string;
   recipientAddress: string;
   shipDate: string;
+  expectedDeliveryTime: string;
+  estimatedDelivery: string;
   weightKg: number;
   pieceType: string;
   packageDescription: string;
@@ -149,6 +151,8 @@ function toShipment(row: TrackedRow | ShipmentRow, dbId = ""): Shipment {
     senderAddress: row.sender_address ?? "",
     recipientAddress: row.recipient_address ?? "",
     shipDate: details?.ship_date ?? "",
+    expectedDeliveryTime: details?.expected_delivery_time ?? "",
+    estimatedDelivery: row.estimated_delivery,
     weightKg: details?.weight_kg ?? 0,
     pieceType: details?.piece_type ?? "",
     packageDescription: details?.package_description ?? "",
@@ -222,7 +226,7 @@ export async function trackShipment(trackingNumber: string): Promise<Shipment | 
   return data[0] ? toShipment(data[0]) : null;
 }
 
-export async function createShipment(input: {
+type ShipmentInput = {
   recipient: string;
   recipientEmail: string;
   origin: { name: string; position: Coordinate };
@@ -241,35 +245,43 @@ export async function createShipment(input: {
   senderAddress: string;
   recipientAddress: string;
   packageDescription: string;
-}): Promise<{ shipment: Shipment; notificationError: string | null }> {
+};
+
+function shipmentValues(input: ShipmentInput) {
+  return {
+    recipient_name: input.recipient,
+    recipient_email: input.recipientEmail,
+    sender_name: input.senderName,
+    sender_email: input.senderEmail,
+    sender_phone: input.senderPhone,
+    recipient_phone: input.recipientPhone,
+    origin_name: input.origin.name,
+    destination_name: input.destination.name,
+    origin_lat: input.origin.position.lat,
+    origin_lng: input.origin.position.lng,
+    destination_lat: input.destination.position.lat,
+    destination_lng: input.destination.position.lng,
+    mode: input.mode,
+    weight_kg: input.weightKg,
+    ship_date: input.shipDate,
+    estimated_delivery: input.estimatedDelivery,
+    expected_delivery_time: input.expectedDeliveryTime,
+    piece_type: input.pieceType,
+    sender_address: input.senderAddress,
+    recipient_address: input.recipientAddress,
+    package_description: input.packageDescription,
+  };
+}
+
+export async function createShipment(input: ShipmentInput): Promise<{ shipment: Shipment; notificationError: string | null }> {
   const invoice = createInvoiceDetails();
   const { data, error } = await requireClient()
     .from("shipments")
     .insert({
-      recipient_name: input.recipient,
-      recipient_email: input.recipientEmail,
-      sender_name: input.senderName,
-      sender_email: input.senderEmail,
-      sender_phone: input.senderPhone,
-      recipient_phone: input.recipientPhone,
-      origin_name: input.origin.name,
-      destination_name: input.destination.name,
-      origin_lat: input.origin.position.lat,
-      origin_lng: input.origin.position.lng,
-      destination_lat: input.destination.position.lat,
-      destination_lng: input.destination.position.lng,
-      mode: input.mode,
+      ...shipmentValues(input),
       status: input.status,
       progress: input.status === "Delivered" ? 1 : 0,
       started_at: input.status === "In transit" ? new Date().toISOString() : null,
-      weight_kg: input.weightKg,
-      ship_date: input.shipDate,
-      estimated_delivery: input.estimatedDelivery,
-      expected_delivery_time: input.expectedDeliveryTime,
-      piece_type: input.pieceType,
-      sender_address: input.senderAddress,
-      recipient_address: input.recipientAddress,
-      package_description: input.packageDescription,
       invoice_number: invoice.invoiceNumber,
       invoice_currency: invoice.currency,
       invoice_issued_on: invoice.issuedOn,
@@ -281,6 +293,18 @@ export async function createShipment(input: {
     .single();
   if (error) throw error;
   const notificationError = await notifyShipment(data.id, "created");
+  return { shipment: toShipment(data, data.id), notificationError };
+}
+
+export async function updateShipmentDetails(dbId: string, input: ShipmentInput): Promise<{ shipment: Shipment; notificationError: string | null }> {
+  const { data, error } = await requireClient()
+    .from("shipments")
+    .update(shipmentValues(input))
+    .eq("id", dbId)
+    .select("*")
+    .single();
+  if (error) throw error;
+  const notificationError = await notifyShipment(dbId, "updated");
   return { shipment: toShipment(data, data.id), notificationError };
 }
 
