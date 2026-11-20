@@ -27,7 +27,7 @@ These `VITE_` values are included in browser code at build time; a `.env.local` 
 
 ## Supabase setup
 
-Apply migrations in `supabase/migrations/` to the intended project. The migration adds verified-email shipment linking and keeps stored journey progress monotonic when status changes. Map movement is an estimate based on route, service speed and shipment status; actual carrier GPS requires a trusted location feed.
+Apply migrations in `supabase/migrations/` to the intended project. The migrations add verified-email shipment linking, keep stored journey progress monotonic when status changes, and add the shipment contact, package, ship-date, and timeline fields used by the admin creation form. Map movement is an estimate based on route, service speed and shipment status; actual carrier GPS requires a trusted location feed.
 
 To create the administrator:
 

@@ -1219,8 +1219,10 @@ body {
 }
 
 .shipment-modal {
-  width: min(100%, 430px);
-  padding: 22px;
+  display: flex;
+  width: min(100%, 900px);
+  max-height: calc(100vh - 36px);
+  flex-direction: column;
   border: 1px solid rgba(255,255,255,.7);
   border-radius: 13px;
   background: #fff;
@@ -1235,10 +1237,12 @@ body {
 
 .modal-heading {
   display: flex;
-  align-items: flex-start;
+  flex: 0 0 auto;
+  align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 19px;
+  padding: 20px 24px;
+  border-bottom: 1px solid #f0f1f4;
 }
 
 .modal-icon {
@@ -1268,7 +1272,10 @@ body {
 
 .shipment-modal form {
   display: grid;
-  gap: 14px;
+  min-height: 0;
+  gap: 16px;
+  overflow-y: auto;
+  padding: 20px 24px 24px;
 }
 
 .shipment-modal form label {
@@ -1279,7 +1286,8 @@ body {
   font-weight: 600;
 }
 
-.shipment-modal input {
+.shipment-modal input,
+.shipment-modal textarea {
   width: 100%;
   height: 39px;
   padding: 0 11px;
@@ -1291,12 +1299,21 @@ body {
   font-size: 11px;
 }
 
-.shipment-modal input:focus {
+.shipment-modal textarea {
+  height: auto;
+  min-height: 84px;
+  padding: 10px 11px;
+  resize: vertical;
+}
+
+.shipment-modal input:focus,
+.shipment-modal textarea:focus {
   border-color: #8e84df;
   box-shadow: 0 0 0 3px rgba(101,88,211,.09);
 }
 
-.shipment-modal input::placeholder {
+.shipment-modal input::placeholder,
+.shipment-modal textarea::placeholder {
   color: #adaeb7;
 }
 
@@ -1324,13 +1341,92 @@ body {
   gap: 10px;
 }
 
+.shipment-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 16px;
+}
+
+.shipment-form-full {
+  grid-column: 1 / -1;
+}
+
+.timeline-events-editor {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid #e6e7ed;
+  border-radius: 9px;
+}
+
+.timeline-events-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.timeline-events-heading h3 {
+  margin: 0;
+  color: #555563;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.timeline-events-heading .button-secondary {
+  min-height: 32px;
+  padding: 0 11px;
+  color: #6558d3;
+  font-size: 11px;
+}
+
+.timeline-event-row {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid #e6e7ed;
+  border-radius: 8px;
+  background: #fafaff;
+}
+
+.timeline-event-location {
+  position: relative;
+}
+
+.timeline-event-location input {
+  padding-right: 42px;
+}
+
+.timeline-event-remove {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  color: #b24646;
+  background: transparent;
+  cursor: pointer;
+}
+
+.timeline-event-remove:hover {
+  background: #fff0f0;
+}
+
 .modal-form-actions {
+  position: sticky;
+  bottom: -24px;
   display: flex;
   justify-content: flex-end;
   gap: 8px;
-  margin-top: 7px;
-  padding-top: 15px;
+  margin: 0 -24px -24px;
+  padding: 14px 24px;
   border-top: 1px solid #f0f1f4;
+  background: #fff;
 }
 
 .map-panel {
@@ -2042,6 +2138,37 @@ body {
 }
 
 @media (max-width: 680px) {
+  .modal-backdrop {
+    padding: 8px;
+  }
+
+  .shipment-modal {
+    max-height: calc(100vh - 16px);
+  }
+
+  .modal-heading {
+    padding: 16px;
+  }
+
+  .shipment-modal form {
+    padding: 16px 16px 20px;
+  }
+
+  .shipment-form-grid,
+  .shipment-form-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .shipment-form-full {
+    grid-column: auto;
+  }
+
+  .modal-form-actions {
+    bottom: -20px;
+    margin: 0 -16px -20px;
+    padding: 12px 16px;
+  }
+
   .admin-sidebar {
     z-index: 40;
     width: min(280px, 84vw);

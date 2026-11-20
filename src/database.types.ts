@@ -92,18 +92,30 @@ export type Database = {
           destination_lng: number
           destination_name: string
           estimated_delivery: string
+          expected_delivery_time: string | null
           id: string
           mode: string
           origin_lat: number
           origin_lng: number
           origin_name: string
+          package_description: string
+          piece_type: string
           progress: number
+          recipient_address: string
           recipient_email: string
           recipient_name: string
+          recipient_phone: string
+          sender_address: string
+          sender_email: string
+          sender_name: string
+          sender_phone: string
+          ship_date: string
           started_at: string | null
           status: string
+          timeline_events: Json
           tracking_number: string
           updated_at: string
+          weight_kg: number
         }
         Insert: {
           created_at?: string
@@ -113,18 +125,30 @@ export type Database = {
           destination_lng: number
           destination_name: string
           estimated_delivery: string
+          expected_delivery_time?: string | null
           id?: string
           mode: string
           origin_lat: number
           origin_lng: number
           origin_name: string
+          package_description?: string
+          piece_type?: string
           progress?: number
+          recipient_address?: string
           recipient_email?: string
           recipient_name: string
+          recipient_phone?: string
+          sender_address?: string
+          sender_email?: string
+          sender_name?: string
+          sender_phone?: string
+          ship_date?: string
           started_at?: string | null
           status?: string
+          timeline_events?: Json
           tracking_number?: string
           updated_at?: string
+          weight_kg?: number
         }
         Update: {
           created_at?: string
@@ -134,18 +158,30 @@ export type Database = {
           destination_lng?: number
           destination_name?: string
           estimated_delivery?: string
+          expected_delivery_time?: string | null
           id?: string
           mode?: string
           origin_lat?: number
           origin_lng?: number
           origin_name?: string
+          package_description?: string
+          piece_type?: string
           progress?: number
+          recipient_address?: string
           recipient_email?: string
           recipient_name?: string
+          recipient_phone?: string
+          sender_address?: string
+          sender_email?: string
+          sender_name?: string
+          sender_phone?: string
+          ship_date?: string
           started_at?: string | null
           status?: string
+          timeline_events?: Json
           tracking_number?: string
           updated_at?: string
+          weight_kg?: number
         }
         Relationships: []
       }

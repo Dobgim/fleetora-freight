@@ -76,10 +76,63 @@ function DashboardIcon({ name }: { name: string }) {
   return <span className="dash-nav-icon"><Icon name={name} /></span>;
 }
 
-function defaultDeliveryDate(): string {
-  const date = new Date();
-  date.setDate(date.getDate() + 7);
-  return date.toISOString().slice(0, 10);
+function localDateValue(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+type TimelineEventForm = {
+  time: string;
+  title: string;
+  location: string;
+};
+
+type ShipmentFormState = {
+  senderName: string;
+  senderEmail: string;
+  senderPhone: string;
+  recipientName: string;
+  recipientEmail: string;
+  recipientPhone: string;
+  origin: string;
+  destination: string;
+  mode: ShipmentMode;
+  weightKg: string;
+  status: ShipmentStatus;
+  shipDate: string;
+  expectedDeliveryDate: string;
+  expectedDeliveryTime: string;
+  pieceType: string;
+  senderAddress: string;
+  recipientAddress: string;
+  packageDescription: string;
+  timelineEvents: TimelineEventForm[];
+};
+
+function newShipmentForm(): ShipmentFormState {
+  return {
+    senderName: "",
+    senderEmail: "",
+    senderPhone: "",
+    recipientName: "",
+    recipientEmail: "",
+    recipientPhone: "",
+    origin: CITY_OPTIONS[0].name,
+    destination: CITY_OPTIONS[1].name,
+    mode: "Ocean freight",
+    weightKg: "",
+    status: "Pending",
+    shipDate: localDateValue(new Date()),
+    expectedDeliveryDate: "",
+    expectedDeliveryTime: "",
+    pieceType: "Parcel",
+    senderAddress: "",
+    recipientAddress: "",
+    packageDescription: "",
+    timelineEvents: [{ time: "", title: "", location: "" }],
+  };
 }
 
 function greeting(): string {
@@ -98,8 +151,6 @@ export default function AdminDashboard({ user, onSignOut }: { user: User; onSign
   const [loadError, setLoadError] = useState("");
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
-  const [newRecipientEmail, setNewRecipientEmail] = useState("");
-  const [newDeliveryDate, setNewDeliveryDate] = useState(defaultDeliveryDate);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All shipments");
   const [statusMenuId, setStatusMenuId] = useState<string | null>(null);
@@ -107,10 +158,7 @@ export default function AdminDashboard({ user, onSignOut }: { user: User; onSign
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
-  const [newRecipient, setNewRecipient] = useState("");
-  const [newOrigin, setNewOrigin] = useState(CITY_OPTIONS[0].name);
-  const [newDestination, setNewDestination] = useState(CITY_OPTIONS[1].name);
-  const [newMode, setNewMode] = useState<ShipmentMode>("Ocean freight");
+  const [shipmentForm, setShipmentForm] = useState<ShipmentFormState>(newShipmentForm);
 
   useEffect(() => {
     function syncPage() {
@@ -187,25 +235,60 @@ export default function AdminDashboard({ user, onSignOut }: { user: User; onSign
 
   async function addShipment(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const recipient = newRecipient.trim();
-    const origin = CITY_OPTIONS.find((city) => city.name === newOrigin);
-    const destination = CITY_OPTIONS.find((city) => city.name === newDestination);
-    if (!recipient || !origin || !destination) return;
+    const form = shipmentForm;
+    const recipient = form.recipientName.trim();
+    const origin = CITY_OPTIONS.find((city) => city.name === form.origin);
+    const destination = CITY_OPTIONS.find((city) => city.name === form.destination);
+    const timelineEvents = form.timelineEvents
+      .map((timelineEvent) => ({
+        time: timelineEvent.time.trim(),
+        title: timelineEvent.title.trim(),
+        location: timelineEvent.location.trim(),
+      }));
+    const nonEmptyEvents = timelineEvents.filter((timelineEvent) => (
+      timelineEvent.time || timelineEvent.title || timelineEvent.location
+    ));
+    if (nonEmptyEvents.some((timelineEvent) => (
+      !timelineEvent.time || !timelineEvent.title || !timelineEvent.location
+    ))) {
+      setFormError("Complete each timeline event or remove the empty event.");
+      return;
+    }
+    if (!recipient || !form.senderName.trim() || !origin || !destination) {
+      setFormError("Complete all required shipment fields.");
+      return;
+    }
+    const expectedDeliveryDate = form.expectedDeliveryDate || (() => {
+      const date = new Date(`${form.shipDate}T00:00:00`);
+      date.setDate(date.getDate() + 7);
+      return localDateValue(date);
+    })();
     setSaving(true);
     setFormError("");
     try {
       const created = await createShipment({
         recipient,
-        recipientEmail: newRecipientEmail.trim(),
+        recipientEmail: form.recipientEmail.trim(),
         origin,
         destination,
-        mode: newMode,
-        estimatedDelivery: newDeliveryDate,
+        mode: form.mode,
+        estimatedDelivery: expectedDeliveryDate,
+        senderName: form.senderName.trim(),
+        senderEmail: form.senderEmail.trim(),
+        senderPhone: form.senderPhone.trim(),
+        recipientPhone: form.recipientPhone.trim(),
+        weightKg: Number(form.weightKg),
+        status: form.status,
+        shipDate: form.shipDate,
+        expectedDeliveryTime: form.expectedDeliveryTime || null,
+        pieceType: form.pieceType,
+        senderAddress: form.senderAddress.trim(),
+        recipientAddress: form.recipientAddress.trim(),
+        packageDescription: form.packageDescription.trim(),
+        timelineEvents: nonEmptyEvents,
       });
       setShipments((current) => [created, ...current.filter((shipment) => shipment.dbId !== created.dbId)]);
-      setNewRecipient("");
-      setNewRecipientEmail("");
-      setNewDeliveryDate(defaultDeliveryDate());
+      setShipmentForm(newShipmentForm());
       setStatusFilter("All shipments");
       setSearch("");
       setActivePage("Shipments");
@@ -345,7 +428,49 @@ export default function AdminDashboard({ user, onSignOut }: { user: User; onSign
         </main>
       </section>
 
-      {modalOpen && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setModalOpen(false); }}><section className="shipment-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title"><div className="modal-heading"><div><span className="modal-icon"><Icon name="box" /></span><h2 id="modal-title">Create a shipment</h2><p>Add a new delivery to your workspace.</p></div><button className="icon-button" aria-label="Close" onClick={() => setModalOpen(false)}><Icon name="close" /></button></div><form onSubmit={addShipment}><label>Customer or recipient<input autoFocus required value={newRecipient} onChange={(event) => setNewRecipient(event.target.value)} placeholder="e.g. Northstar Furniture" /></label><label>Recipient email (optional)<input type="email" value={newRecipientEmail} onChange={(event) => setNewRecipientEmail(event.target.value)} placeholder="name@company.com" /></label><div className="shipment-form-row"><label>From<select value={newOrigin} onChange={(event) => setNewOrigin(event.target.value)}>{CITY_OPTIONS.map((city) => <option key={city.name}>{city.name}</option>)}</select></label><label>To<select value={newDestination} onChange={(event) => setNewDestination(event.target.value)}>{CITY_OPTIONS.filter((city) => city.name !== newOrigin).map((city) => <option key={city.name}>{city.name}</option>)}</select></label></div><label>Service mode<select value={newMode} onChange={(event) => setNewMode(event.target.value as ShipmentMode)}><option>Road freight</option><option>Ocean freight</option><option>Air freight</option></select></label><label>Estimated delivery<input type="date" required value={newDeliveryDate} onChange={(event) => setNewDeliveryDate(event.target.value)} /></label>{formError && <p className="admin-auth-error" role="alert">{formError}</p>}<div className="modal-form-actions"><button className="button-secondary" type="button" onClick={() => setModalOpen(false)}>Cancel</button><button className="button-primary" type="submit" disabled={saving}><Icon name="plus" size={17} /> {saving ? "Saving…" : "Create shipment"}</button></div></form></section></div>}
+      {modalOpen && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setModalOpen(false); }}>
+        <section className="shipment-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+          <div className="modal-heading">
+            <div><h2 id="modal-title">Create New Shipment</h2></div>
+            <button className="icon-button" aria-label="Close" onClick={() => setModalOpen(false)}><Icon name="close" /></button>
+          </div>
+          <form onSubmit={addShipment}>
+            <div className="shipment-form-grid">
+              <label>Tracking ID<input value="Generated when saved" readOnly /></label>
+              <label>Shipment type *<select required value={shipmentForm.mode} onChange={(event) => setShipmentForm({ ...shipmentForm, mode: event.target.value as ShipmentMode })}><option>Road freight</option><option>Ocean freight</option><option>Air freight</option></select></label>
+              <label>Sender name *<input autoFocus required value={shipmentForm.senderName} onChange={(event) => setShipmentForm({ ...shipmentForm, senderName: event.target.value })} placeholder="Sender name" /></label>
+              <label>Receiver name *<input required value={shipmentForm.recipientName} onChange={(event) => setShipmentForm({ ...shipmentForm, recipientName: event.target.value })} placeholder="Receiver name" /></label>
+              <label>Sender email<input type="email" value={shipmentForm.senderEmail} onChange={(event) => setShipmentForm({ ...shipmentForm, senderEmail: event.target.value })} placeholder="sender@example.com" /></label>
+              <label>Receiver email<input type="email" value={shipmentForm.recipientEmail} onChange={(event) => setShipmentForm({ ...shipmentForm, recipientEmail: event.target.value })} placeholder="receiver@example.com" /></label>
+              <label>Sender number<input type="tel" value={shipmentForm.senderPhone} onChange={(event) => setShipmentForm({ ...shipmentForm, senderPhone: event.target.value })} placeholder="e.g. +1 234 567 8900" /></label>
+              <label>Receiver number<input type="tel" value={shipmentForm.recipientPhone} onChange={(event) => setShipmentForm({ ...shipmentForm, recipientPhone: event.target.value })} placeholder="e.g. +1 987 654 3210" /></label>
+              <label>Origin *<select required value={shipmentForm.origin} onChange={(event) => setShipmentForm({ ...shipmentForm, origin: event.target.value })}>{CITY_OPTIONS.map((city) => <option key={city.name}>{city.name}</option>)}</select></label>
+              <label>Destination *<select required value={shipmentForm.destination} onChange={(event) => setShipmentForm({ ...shipmentForm, destination: event.target.value })}>{CITY_OPTIONS.filter((city) => city.name !== shipmentForm.origin).map((city) => <option key={city.name}>{city.name}</option>)}</select></label>
+              <label>Weight (kg) *<input type="number" min="0" step="0.1" required value={shipmentForm.weightKg} onChange={(event) => setShipmentForm({ ...shipmentForm, weightKg: event.target.value })} placeholder="0.0" /></label>
+              <label>Status *<select required value={shipmentForm.status} onChange={(event) => setShipmentForm({ ...shipmentForm, status: event.target.value as ShipmentStatus })}><option>Pending</option><option>In transit</option><option>Delivered</option><option>Delayed</option><option>On hold</option></select></label>
+              <label>Ship date *<input type="date" required value={shipmentForm.shipDate} onChange={(event) => setShipmentForm({ ...shipmentForm, shipDate: event.target.value })} /></label>
+              <label>Expected delivery date<input type="date" value={shipmentForm.expectedDeliveryDate} onChange={(event) => setShipmentForm({ ...shipmentForm, expectedDeliveryDate: event.target.value })} /></label>
+              <label>Expected delivery time<input type="time" value={shipmentForm.expectedDeliveryTime} onChange={(event) => setShipmentForm({ ...shipmentForm, expectedDeliveryTime: event.target.value })} /></label>
+              <label>Piece type<select value={shipmentForm.pieceType} onChange={(event) => setShipmentForm({ ...shipmentForm, pieceType: event.target.value })}><option>Parcel</option><option>Box</option><option>Pallet</option><option>Document</option><option>Container</option><option>Other</option></select></label>
+              <label>Sender address<input value={shipmentForm.senderAddress} onChange={(event) => setShipmentForm({ ...shipmentForm, senderAddress: event.target.value })} placeholder="Full address" /></label>
+              <label>Receiver address<input value={shipmentForm.recipientAddress} onChange={(event) => setShipmentForm({ ...shipmentForm, recipientAddress: event.target.value })} placeholder="Full address" /></label>
+              <label className="shipment-form-full">Package description<textarea rows={3} value={shipmentForm.packageDescription} onChange={(event) => setShipmentForm({ ...shipmentForm, packageDescription: event.target.value })} placeholder="Describe the package contents..." /></label>
+            </div>
+            <section className="timeline-events-editor" aria-label="Timeline events">
+              <div className="timeline-events-heading"><h3>Timeline events</h3><button className="button-secondary" type="button" onClick={() => setShipmentForm({ ...shipmentForm, timelineEvents: [...shipmentForm.timelineEvents, { time: "", title: "", location: "" }] })}>+ Add event</button></div>
+              {shipmentForm.timelineEvents.map((timelineEvent, index) => <div className="timeline-event-row" key={index}>
+                <div className="shipment-form-row">
+                  <input aria-label={`Event ${index + 1} time`} value={timelineEvent.time} onChange={(event) => setShipmentForm({ ...shipmentForm, timelineEvents: shipmentForm.timelineEvents.map((item, itemIndex) => itemIndex === index ? { ...item, time: event.target.value } : item) })} placeholder="Time (e.g. Today, 10:45 AM)" />
+                  <input aria-label={`Event ${index + 1} title`} value={timelineEvent.title} onChange={(event) => setShipmentForm({ ...shipmentForm, timelineEvents: shipmentForm.timelineEvents.map((item, itemIndex) => itemIndex === index ? { ...item, title: event.target.value } : item) })} placeholder="Event title (e.g. Out for Delivery)" />
+                </div>
+                <div className="timeline-event-location"><input aria-label={`Event ${index + 1} location`} value={timelineEvent.location} onChange={(event) => setShipmentForm({ ...shipmentForm, timelineEvents: shipmentForm.timelineEvents.map((item, itemIndex) => itemIndex === index ? { ...item, location: event.target.value } : item) })} placeholder="Location details (e.g. London, UK)" />{shipmentForm.timelineEvents.length > 1 && <button className="timeline-event-remove" type="button" aria-label={`Remove event ${index + 1}`} onClick={() => setShipmentForm({ ...shipmentForm, timelineEvents: shipmentForm.timelineEvents.filter((_, itemIndex) => itemIndex !== index) })}><Icon name="close" size={15} /></button>}</div>
+              </div>)}
+            </section>
+            {formError && <p className="admin-auth-error" role="alert">{formError}</p>}
+            <div className="modal-form-actions"><button className="button-secondary" type="button" onClick={() => setModalOpen(false)}>Cancel</button><button className="button-primary" type="submit" disabled={saving}><Icon name="plus" size={17} /> {saving ? "Saving…" : "Save & Create Shipment"}</button></div>
+          </form>
+        </section>
+      </div>}
     </div>
   );
 }

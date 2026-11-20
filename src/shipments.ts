@@ -139,12 +139,29 @@ export async function createShipment(input: {
   destination: { name: string; position: Coordinate };
   mode: ShipmentMode;
   estimatedDelivery: string;
+  senderName: string;
+  senderEmail: string;
+  senderPhone: string;
+  recipientPhone: string;
+  weightKg: number;
+  status: ShipmentStatus;
+  shipDate: string;
+  expectedDeliveryTime: string | null;
+  pieceType: string;
+  senderAddress: string;
+  recipientAddress: string;
+  packageDescription: string;
+  timelineEvents: { time: string; title: string; location: string }[];
 }): Promise<Shipment> {
   const { data, error } = await requireClient()
     .from("shipments")
     .insert({
       recipient_name: input.recipient,
       recipient_email: input.recipientEmail,
+      sender_name: input.senderName,
+      sender_email: input.senderEmail,
+      sender_phone: input.senderPhone,
+      recipient_phone: input.recipientPhone,
       origin_name: input.origin.name,
       destination_name: input.destination.name,
       origin_lat: input.origin.position.lat,
@@ -152,7 +169,18 @@ export async function createShipment(input: {
       destination_lat: input.destination.position.lat,
       destination_lng: input.destination.position.lng,
       mode: input.mode,
+      status: input.status,
+      progress: input.status === "Delivered" ? 1 : 0,
+      started_at: input.status === "In transit" ? new Date().toISOString() : null,
+      weight_kg: input.weightKg,
+      ship_date: input.shipDate,
       estimated_delivery: input.estimatedDelivery,
+      expected_delivery_time: input.expectedDeliveryTime,
+      piece_type: input.pieceType,
+      sender_address: input.senderAddress,
+      recipient_address: input.recipientAddress,
+      package_description: input.packageDescription,
+      timeline_events: input.timelineEvents,
     })
     .select("*")
     .single();
