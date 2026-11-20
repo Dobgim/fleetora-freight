@@ -1,12 +1,20 @@
 import AdminGate from "./AdminGate";
+import AccountPortal from "./AccountPortal";
 import ClientTracking from "./ClientTracking";
+import PublicPage, { isPublicPage } from "./PublicPage";
 
 export default function App() {
   if (window.location.pathname.startsWith("/admin")) {
     return <AdminGate />;
   }
+  if (window.location.pathname.startsWith("/account")) {
+    return <AccountPortal />;
+  }
   if (window.location.pathname.startsWith("/track")) {
     return <ClientTracking />;
+  }
+  if (isPublicPage(window.location.pathname)) {
+    return <PublicPage path={window.location.pathname} />;
   }
 
   return (

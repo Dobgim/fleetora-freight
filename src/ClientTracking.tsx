@@ -74,13 +74,13 @@ export default function ClientTracking() {
     <div className="client-tracking">
       <header className="tracking-header">
         <a href="/" className="tracking-brand"><img src="/storage/brand/prestige-freight-cargo.svg" alt="Prestige Freight Cargo" /></a>
-        <a className="tracking-home-link" href="/">Freight, parcels & logistics <span>↗</span></a>
+        <div className="tracking-header-actions"><a className="tracking-home-link" href="/">Freight, parcels & logistics <span>↗</span></a><a className="tracking-account-link" href="/account">Customer login</a></div>
       </header>
       <main className="tracking-content">
         <div className="tracking-intro">
           <span className="tracking-eyebrow"><i /> SHIPMENT TRACKING</span>
           <h1>Every mile, in view.</h1>
-          <p>Get the latest location and journey details for your Prestige Freight Cargo shipment.</p>
+          <p>Get an estimated shipment location and the latest journey details for your Prestige Freight Cargo delivery.</p>
         </div>
 
         <form className="tracking-search-form" onSubmit={searchShipment}>
@@ -106,7 +106,7 @@ export default function ClientTracking() {
             </section>
 
             <section className="client-map-card">
-              <div className="client-map-heading"><div><h2>Shipment location</h2><p>{isMoving ? `Moving at ${speed.toLocaleString()} km/h · Updated just now` : shipment.status === "Delivered" ? "Package delivered to its destination" : "Package is stationary while its status is " + shipment.status.toLowerCase()}</p></div><span className={`map-pulse ${isMoving ? "moving" : ""}`}><i />{isMoving ? "MOVING" : shipment.status.toUpperCase()}</span></div>
+              <div className="client-map-heading"><div><h2>Shipment location</h2><p>{isMoving ? `Estimated movement at ${speed.toLocaleString()} km/h` : shipment.status === "Delivered" ? "Package delivered to its destination" : "Package is stationary while its status is " + shipment.status.toLowerCase()}</p></div><span className={`map-pulse ${isMoving ? "moving" : ""}`}><i />{isMoving ? "MOVING · EST." : shipment.status.toUpperCase()}</span></div>
               <GoogleShipmentMap shipments={mappedShipments} selectedId={shipment.id} className="client-map" />
               <div className="simulation-note"><span>ⓘ</span> Position is estimated from the service speed and the latest status update from our operations team.</div>
             </section>

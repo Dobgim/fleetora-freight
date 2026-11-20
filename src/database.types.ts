@@ -172,6 +172,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      claim_customer_shipments: { Args: never; Returns: number }
       generate_tracking_number: { Args: never; Returns: string }
       is_admin: { Args: never; Returns: boolean }
       set_shipment_status: {

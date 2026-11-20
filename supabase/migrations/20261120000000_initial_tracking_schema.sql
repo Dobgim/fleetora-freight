@@ -6,21 +6,6 @@
 
 begin;
 
--- Clean out the previous project tables.
-drop table if exists public.messages cascade;
-drop table if exists public.shipments cascade;
-drop table if exists public.quote_requests cascade;
-drop table if exists public.newsletter_subscribers cascade;
-drop table if exists public.user_roles cascade;
-drop table if exists public.profiles cascade;
-drop function if exists public.track_shipment(text);
-drop function if exists public.claim_shipment(text);
-drop function if exists public.set_shipment_status(uuid, text);
-drop function if exists public.is_admin();
-drop function if exists public.generate_tracking_number();
-drop function if exists public.handle_new_user() cascade;
-drop function if exists public.set_updated_at() cascade;
-
 create extension if not exists citext with schema extensions;
 
 -- Accounts --------------------------------------------------------------
@@ -256,10 +241,12 @@ begin
   set status = p_status,
       progress = case
         when p_status = 'Delivered' then 1
-        when p_status = 'In transit' and shipment.status = 'Delivered' then 0
-        else current_progress
+        else greatest(shipment.progress, current_progress)
       end,
-      started_at = case when p_status = 'In transit' then now() else null end
+      started_at = case
+        when p_status = 'In transit' and current_progress < 1 then now()
+        else null
+      end
   where id = p_shipment_id;
 end;
 $$;
@@ -356,16 +343,5 @@ begin
   end if;
 end;
 $$;
-
--- Demo shipments so the dashboard and tracking page have data to show.
-insert into public.shipments
-  (tracking_number, recipient_name, origin_name, destination_name, origin_lat, origin_lng,
-   destination_lat, destination_lng, mode, status, progress, started_at, estimated_delivery)
-values
-  ('PFC-7KQ4-M29X', 'Northstar Furniture', 'Newark, US', 'Rotterdam, NL', 40.6895, -74.1745, 51.9225, 4.4792, 'Ocean freight', 'In transit', 0.34, now(), date '2026-11-23'),
-  ('PFC-2XP8-B14C', 'Marlow & Finch', 'Los Angeles, US', 'Chicago, US', 33.7405, -118.272, 41.8781, -87.6298, 'Road freight', 'In transit', 0.42, now(), date '2026-11-22'),
-  ('PFC-9LD3-Q61A', 'Goodwell Market', 'London, UK', 'Toronto, CA', 51.47, -0.4543, 43.6777, -79.6248, 'Air freight', 'Delivered', 1, null, date '2026-11-21'),
-  ('PFC-4HT6-W82N', 'Aster Home', 'Houston, US', 'Miami, US', 29.755, -95.354, 25.7959, -80.287, 'Road freight', 'On hold', 0.18, null, date '2026-11-24'),
-  ('PFC-5ZM1-R73P', 'Paw & Co.', 'New York, US', 'Dublin, IE', 40.6413, -73.7781, 53.4264, -6.2499, 'Air freight', 'Delayed', 0.56, null, date '2026-11-25');
 
 commit;

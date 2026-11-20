@@ -32,6 +32,21 @@ const titles: Record<string, string> = {
   Settings: "Settings",
 };
 
+const pageSlugs: Record<string, string> = {
+  Overview: "",
+  Shipments: "/shipments",
+  Tracking: "/tracking",
+  Customers: "/customers",
+  Invoices: "/invoices",
+  Analytics: "/analytics",
+  Settings: "/settings",
+};
+
+function pageFromPath(): string {
+  const slug = window.location.pathname.replace(/^\/admin\/?/, "");
+  return Object.entries(pageSlugs).find(([, path]) => path.slice(1) === slug)?.[0] ?? "Overview";
+}
+
 function Icon({ name, size = 20 }: { name: string; size?: number }) {
   const paths: Record<string, ReactNode> = {
     grid: <><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></>,
@@ -78,7 +93,7 @@ export default function AdminDashboard({ user, onSignOut }: { user: User; onSign
   const firstName = fullName.split(/\s+/)[0];
   const userInitials = fullName.split(/[\s._-]+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
   const todayLabel = new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" }).toUpperCase();
-  const [activePage, setActivePage] = useState("Overview");
+  const [activePage, setActivePage] = useState(pageFromPath);
   const [shipments, setShipments] = useState<Shipment[]>([]);
   const [loadError, setLoadError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -96,6 +111,14 @@ export default function AdminDashboard({ user, onSignOut }: { user: User; onSign
   const [newOrigin, setNewOrigin] = useState(CITY_OPTIONS[0].name);
   const [newDestination, setNewDestination] = useState(CITY_OPTIONS[1].name);
   const [newMode, setNewMode] = useState<ShipmentMode>("Ocean freight");
+
+  useEffect(() => {
+    function syncPage() {
+      setActivePage(pageFromPath());
+    }
+    window.addEventListener("popstate", syncPage);
+    return () => window.removeEventListener("popstate", syncPage);
+  }, []);
 
   useEffect(() => {
     if (!modalOpen) return;
@@ -132,6 +155,35 @@ export default function AdminDashboard({ user, onSignOut }: { user: User; onSign
     const matchesStatus = statusFilter === "All shipments" || shipment.status === statusFilter;
     return matchesSearch && matchesStatus;
   }), [search, shipments, statusFilter]);
+  const serviceCounts = useMemo(() => ({
+    "Ocean freight": shipments.filter((shipment) => shipment.mode === "Ocean freight").length,
+    "Air freight": shipments.filter((shipment) => shipment.mode === "Air freight").length,
+    "Road freight": shipments.filter((shipment) => shipment.mode === "Road freight").length,
+  }), [shipments]);
+  const statusCounts = useMemo(() => ({
+    "In transit": shipments.filter((shipment) => shipment.status === "In transit").length,
+    "On hold": shipments.filter((shipment) => shipment.status === "On hold").length,
+    Delayed: shipments.filter((shipment) => shipment.status === "Delayed").length,
+    Delivered: shipments.filter((shipment) => shipment.status === "Delivered").length,
+    Pending: shipments.filter((shipment) => shipment.status === "Pending").length,
+  }), [shipments]);
+  const customers = useMemo(() => {
+    const grouped = new Map<string, { name: string; count: number; latest: Shipment }>();
+    shipments.forEach((shipment) => {
+      const key = shipment.recipient.trim().toLowerCase();
+      const current = grouped.get(key);
+      if (current) current.count += 1;
+      else grouped.set(key, { name: shipment.recipient, count: 1, latest: shipment });
+    });
+    return Array.from(grouped.values());
+  }, [shipments]);
+
+  function navigateToPage(page: string) {
+    const url = `/admin${pageSlugs[page] ?? ""}`;
+    window.history.pushState(null, "", url);
+    setActivePage(page);
+    setMobileMenuOpen(false);
+  }
 
   async function addShipment(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -205,7 +257,7 @@ export default function AdminDashboard({ user, onSignOut }: { user: User; onSign
         <div className="admin-nav-label">WORKSPACE</div>
         <nav className="admin-nav" aria-label="Dashboard navigation">
           {navigation.map((item) => (
-            <button key={item.label} className={activePage === item.label ? "active" : ""} onClick={() => { setActivePage(item.label); setMobileMenuOpen(false); }}>
+            <button key={item.label} className={activePage === item.label ? "active" : ""} aria-current={activePage === item.label ? "page" : undefined} onClick={() => navigateToPage(item.label)}>
               <DashboardIcon name={item.icon} />{item.label}
               {item.label === "Shipments" && <span className="nav-count">{shipments.length}</span>}
             </button>
@@ -213,7 +265,7 @@ export default function AdminDashboard({ user, onSignOut }: { user: User; onSign
         </nav>
         <div className="admin-nav-label admin-tools-label">PREFERENCES</div>
         <nav className="admin-nav" aria-label="Preferences">
-          <button className={activePage === "Settings" ? "active" : ""} onClick={() => { setActivePage("Settings"); setMobileMenuOpen(false); }}><DashboardIcon name="settings" />Settings</button>
+          <button className={activePage === "Settings" ? "active" : ""} aria-current={activePage === "Settings" ? "page" : undefined} onClick={() => navigateToPage("Settings")}><DashboardIcon name="settings" />Settings</button>
         </nav>
         <div className="sidebar-bottom">
           <div className="sidebar-help"><span className="help-mark">?</span><b>Need a hand?</b><p>Our support team is always happy to help.</p><a href="mailto:info@prestigefreightcargo.com">Contact support <span>↗</span></a></div>
@@ -231,55 +283,46 @@ export default function AdminDashboard({ user, onSignOut }: { user: User; onSign
               <button className="icon-button notification-button" aria-label="Notifications" aria-expanded={notificationsOpen} onClick={() => setNotificationsOpen((open) => !open)}><Icon name="bell" size={19} /><i /></button>
               {notificationsOpen && <div className="notification-popover"><b>Notifications</b><p><span className="notice-dot" /> Shipment PFC-5ZM1-R73P has been delayed.</p><p><span className="notice-dot green" /> Delivery to Goodwell Market was confirmed.</p><small>You're all caught up on recent updates.</small></div>}
             </div>
-            <button className="topbar-user" onClick={() => setActivePage("Settings")}><span className="profile-avatar">{userInitials}</span><span><b>{fullName}</b><small>Admin</small></span><Icon name="down" size={15} /></button>
+            <button className="topbar-user" onClick={() => navigateToPage("Settings")}><span className="profile-avatar">{userInitials}</span><span><b>{fullName}</b><small>Admin</small></span><Icon name="down" size={15} /></button>
           </div>
         </header>
 
         <main className="admin-content">
           <div className="page-heading">
             <div><div className="welcome-line"><span className="status-live" /> {todayLabel}</div><h1>{activePage === "Overview" ? `${greeting()}, ${firstName}` : pageTitle}</h1><p>{activePage === "Overview" ? "Here's what's happening with your freight today." : `Manage your ${pageTitle.toLowerCase()} and keep every delivery moving.`}</p></div>
-            <div className="heading-actions"><button className="button-secondary" onClick={exportShipments}><Icon name="download" size={17} /> Export</button><button className="button-primary" onClick={() => setModalOpen(true)}><Icon name="plus" size={18} /> New shipment</button></div>
+            {(activePage === "Overview" || activePage === "Shipments") && <div className="heading-actions"><button className="button-secondary" onClick={exportShipments}><Icon name="download" size={17} /> Export</button><button className="button-primary" onClick={() => setModalOpen(true)}><Icon name="plus" size={18} /> New shipment</button></div>}
           </div>
 
           {loadError && <p className="admin-load-error" role="alert">{loadError}</p>}
-          <section className="metric-grid" aria-label="Shipping overview">
-            <article className="metric-card"><div className="metric-top"><span>Total shipments</span><span className="metric-icon purple"><Icon name="box" size={19} /></span></div><div className="metric-value">1,284</div><div className="metric-foot"><span className="trend-up">↗ 12.8%</span><span>vs. last month</span><span className="sparkline purple-spark"><i /><i /><i /><i /><i /><i /><i /><i /></span></div></article>
-            <article className="metric-card"><div className="metric-top"><span>In transit</span><span className="metric-icon blue"><Icon name="pin" size={19} /></span></div><div className="metric-value">342</div><div className="metric-foot"><span className="trend-up">↗ 8.2%</span><span>vs. last month</span><span className="sparkline blue-spark"><i /><i /><i /><i /><i /><i /><i /><i /></span></div></article>
-            <article className="metric-card"><div className="metric-top"><span>Delivered</span><span className="metric-icon green"><Icon name="receipt" size={19} /></span></div><div className="metric-value">891</div><div className="metric-foot"><span className="trend-up">↗ 16.4%</span><span>vs. last month</span><span className="sparkline green-spark"><i /><i /><i /><i /><i /><i /><i /><i /></span></div></article>
-            <article className="metric-card"><div className="metric-top"><span>On-time delivery</span><span className="metric-icon orange"><Icon name="chart" size={19} /></span></div><div className="metric-value">96.8<span className="metric-unit">%</span></div><div className="metric-foot"><span className="trend-up">↗ 2.4%</span><span>vs. last month</span><span className="sparkline orange-spark"><i /><i /><i /><i /><i /><i /><i /><i /></span></div></article>
-          </section>
+          {(activePage === "Overview" || activePage === "Analytics") && <section className="metric-grid" aria-label="Shipping overview">
+            <article className="metric-card"><div className="metric-top"><span>Total shipments</span><span className="metric-icon purple"><Icon name="box" size={19} /></span></div><div className="metric-value">{shipments.length}</div><div className="metric-foot"><span>In this workspace</span></div></article>
+            <article className="metric-card"><div className="metric-top"><span>In transit</span><span className="metric-icon blue"><Icon name="pin" size={19} /></span></div><div className="metric-value">{statusCounts["In transit"]}</div><div className="metric-foot"><span>Currently moving</span></div></article>
+            <article className="metric-card"><div className="metric-top"><span>Delivered</span><span className="metric-icon green"><Icon name="receipt" size={19} /></span></div><div className="metric-value">{statusCounts.Delivered}</div><div className="metric-foot"><span>Completed shipments</span></div></article>
+            <article className="metric-card"><div className="metric-top"><span>Needs attention</span><span className="metric-icon orange"><Icon name="chart" size={19} /></span></div><div className="metric-value">{statusCounts["On hold"] + statusCounts.Delayed}</div><div className="metric-foot"><span>On hold or delayed</span></div></article>
+          </section>}
 
-          <section className="analytics-grid">
+          {(activePage === "Overview" || activePage === "Analytics") && <section className="analytics-grid">
             <article className="panel-card performance-card">
-              <div className="panel-heading"><div><h2>Shipment performance</h2><p>Freight volume across all services</p></div><button className="select-button">Last 7 days <Icon name="down" size={15} /></button></div>
-              <div className="chart-legend"><span><i className="legend-dot ocean-dot" />Ocean freight</span><span><i className="legend-dot air-dot" />Air freight</span><span><i className="legend-dot road-dot" />Road freight</span></div>
-              <div className="bar-chart" aria-label="Shipment volume increased throughout the week">
-                <div className="chart-y-labels"><span>400</span><span>300</span><span>200</span><span>100</span><span>0</span></div>
-                <div className="chart-bars">
-                  {[["42%", "24%", "17%"], ["50%", "28%", "19%"], ["39%", "21%", "25%"], ["66%", "31%", "24%"], ["58%", "36%", "27%"], ["75%", "42%", "29%"], ["90%", "49%", "34%"]].map((bars, index) => (
-                    <div className="chart-day" key={index}><div className="bar-stack"><i className="bar-ocean" style={{ height: bars[0] }} /><i className="bar-air" style={{ height: bars[1] }} /><i className="bar-road" style={{ height: bars[2] }} /></div><span>{["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][index]}</span></div>
-                  ))}
-                </div>
-              </div>
+              <div className="panel-heading"><div><h2>Shipment status</h2><p>Current records by status</p></div></div>
+              <div className="admin-count-list">{Object.entries(statusCounts).map(([status, count]) => <div key={status}><span>{status}</span><b>{count}</b><i><span style={{ width: `${shipments.length ? count / shipments.length * 100 : 0}%` }} /></i></div>)}</div>
             </article>
             <article className="panel-card distribution-card">
-              <div className="panel-heading"><div><h2>By service type</h2><p>Shipment distribution</p></div><button className="more-button" aria-label="More service options">···</button></div>
-              <div className="donut-wrap"><div className="donut-chart"><div><b>1,284</b><span>Shipments</span></div></div></div>
-              <div className="distribution-legend"><div><span><i className="legend-dot ocean-dot" />Ocean freight</span><b>48% <small>616</small></b></div><div><span><i className="legend-dot air-dot" />Air freight</span><b>32% <small>411</small></b></div><div><span><i className="legend-dot road-dot" />Road freight</span><b>20% <small>257</small></b></div></div>
+              <div className="panel-heading"><div><h2>By service type</h2><p>Current shipments by mode</p></div></div>
+              <div className="admin-count-list">{Object.entries(serviceCounts).map(([mode, count]) => <div key={mode}><span>{mode}</span><b>{count}</b><i><span style={{ width: `${shipments.length ? count / shipments.length * 100 : 0}%` }} /></i></div>)}</div>
             </article>
-          </section>
+          </section>}
 
-          <section className="panel-card map-panel">
+          {(activePage === "Overview" || activePage === "Tracking") && <section className="panel-card map-panel">
             <div className="panel-heading map-panel-heading">
-              <div><h2>Live shipment map</h2><p>{selectedShipment ? `${selectedShipment.id} · ${selectedShipment.mode} · ${SPEED_KMH[selectedShipment.mode]} km/h` : "Track every active shipment around the world"}</p></div>
+              <div><h2>Shipment map</h2><p>{selectedShipment ? `${selectedShipment.id} · estimated ${selectedShipment.mode} movement · ${SPEED_KMH[selectedShipment.mode]} km/h` : "Estimated positions for active shipments"}</p></div>
               {shipments[0] && <a className="text-link" href={`/track?code=${encodeURIComponent((selectedShipment ?? shipments[0]).id)}`} target="_blank" rel="noreferrer">Open client view <Icon name="arrow" size={16} /></a>}
             </div>
             <GoogleShipmentMap shipments={shipments} selectedId={selectedShipmentId} onSelect={setSelectedShipmentId} />
-            <div className="map-panel-foot"><span>Estimated movement simulation · Updates every second while in transit</span><span>Road 60 km/h · Sea 35 km/h · Air 800 km/h</span></div>
-          </section>
+            <div className="map-panel-foot"><span>Estimated movement · Pauses when a shipment is not in transit</span><span>Road 60 km/h · Sea 35 km/h · Air 800 km/h</span></div>
+          </section>}
 
-          <section className="panel-card shipments-card">
-            <div className="panel-heading shipment-panel-heading"><div><h2>Recent shipments <span className="table-count">{filteredShipments.length}</span></h2><p>Keep an eye on your latest deliveries</p></div><button className="text-link" onClick={() => { setActivePage("Shipments"); setStatusFilter("All shipments"); }}>View all shipments <Icon name="arrow" size={16} /></button></div>
+          {(activePage === "Overview" || activePage === "Shipments") && <section className="panel-card shipments-card">
+            <div className="panel-heading shipment-panel-heading"><div><h2>{activePage === "Overview" ? "Recent shipments" : "All shipments"} <span className="table-count">{filteredShipments.length}</span></h2><p>{activePage === "Overview" ? "Keep an eye on your latest deliveries" : "Search, filter and update shipment status"}</p></div>{activePage === "Overview" && <button className="text-link" onClick={() => { setStatusFilter("All shipments"); setSearch(""); navigateToPage("Shipments"); }}>View all shipments <Icon name="arrow" size={16} /></button>}</div>
             <div className="table-toolbar">
               <div className="filter-tabs" role="group" aria-label="Filter by shipment status">
                 {["All shipments", "In transit", "On hold", "Delivered", "Pending", "Delayed"].map((filter) => <button key={filter} className={statusFilter === filter ? "selected" : ""} onClick={() => setStatusFilter(filter)}>{filter}</button>)}
@@ -290,7 +333,13 @@ export default function AdminDashboard({ user, onSignOut }: { user: User; onSign
               <tbody>{filteredShipments.length ? filteredShipments.map((shipment) => <tr key={shipment.id}><td><a className="tracking-id" href={`/track?code=${encodeURIComponent(shipment.id)}`} target="_blank" rel="noreferrer">{shipment.id}</a></td><td><span className="customer-cell"><i>{shipment.initials}</i><b>{shipment.recipient}</b></span></td><td className="route-cell">{shipment.route}</td><td><span className="service-cell"><i className={`service-mark ${shipment.mode.startsWith("Air") ? "air-mark" : shipment.mode.startsWith("Road") ? "road-mark" : ""}`} />{shipment.mode}</span></td><td className="eta-cell">{shipment.date}</td><td><span className={`shipment-status ${shipment.status.toLowerCase().replace(" ", "-")}`}><i />{shipment.status}</span></td><td><div className="row-action-wrap"><button className="row-more" aria-label={`Change status for ${shipment.id}`} aria-expanded={statusMenuId === shipment.id} onClick={() => setStatusMenuId(statusMenuId === shipment.id ? null : shipment.id)}>···</button>{statusMenuId === shipment.id && <div className="row-status-menu" role="menu" aria-label={`Change status for ${shipment.id}`}>{(["In transit", "On hold", "Delayed", "Delivered", "Pending"] as ShipmentStatus[]).map((status) => <button key={status} role="menuitem" className={status === shipment.status ? "current" : ""} onClick={() => void changeShipmentStatus(shipment, status)}><i className={`status-menu-dot ${status.toLowerCase().replace(" ", "-")}`} />{status}{status === shipment.status && <span>Current</span>}</button>)}</div>}</div></td></tr>) : <tr><td className="empty-row" colSpan={7}>No shipments match your search.</td></tr>}</tbody>
             </table></div>
             <div className="table-footer"><span>Showing <b>{filteredShipments.length ? 1 : 0}–{filteredShipments.length}</b> of <b>{shipments.length}</b> shipments</span><div><button disabled aria-label="Previous page">‹</button><button className="current-page">1</button><button disabled aria-label="Next page">›</button></div></div>
-          </section>
+          </section>}
+
+          {activePage === "Customers" && <section className="panel-card admin-data-page"><div className="panel-heading"><div><h2>Customers</h2><p>Recipients from existing shipment records</p></div><span className="table-count">{customers.length}</span></div>{customers.length ? <div className="table-scroll"><table className="shipment-table"><thead><tr><th>CUSTOMER</th><th>SHIPMENTS</th><th>LATEST TRACKING ID</th><th>STATUS</th></tr></thead><tbody>{customers.map((customer) => <tr key={customer.name.toLowerCase()}><td>{customer.name}</td><td>{customer.count}</td><td><a className="tracking-id" href={`/track?code=${encodeURIComponent(customer.latest.id)}`} target="_blank" rel="noreferrer">{customer.latest.id}</a></td><td>{customer.latest.status}</td></tr>)}</tbody></table></div> : <p className="admin-empty-state">Customers will appear here after shipments are created.</p>}</section>}
+
+          {activePage === "Invoices" && <section className="panel-card admin-empty-state"><h2>Invoices</h2><p>Invoice management is not connected to this workspace yet. No billing data is shown here.</p></section>}
+
+          {activePage === "Settings" && <section className="panel-card admin-settings-page"><div><span className="account-eyebrow">WORKSPACE ACCESS</span><h2>Account settings</h2><p>Administrator sign-in and security are managed by Supabase Auth.</p></div><dl><div><dt>Signed in as</dt><dd>{user.email}</dd></div><div><dt>Workspace</dt><dd>Prestige Freight Cargo</dd></div></dl><button className="button-secondary" onClick={() => void onSignOut()}>Sign out</button></section>}
 
           <footer className="admin-footer"><span>© 2026 Prestige Freight Cargo</span><span>Need help? <a href="mailto:info@prestigefreightcargo.com">Contact support</a></span></footer>
         </main>

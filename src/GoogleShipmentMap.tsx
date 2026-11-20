@@ -188,7 +188,7 @@ export default function GoogleShipmentMap({ shipments, selectedId, onSelect, cla
         </div>
       )}
       {!mapError && (
-        <div className="map-live-badge"><i /> Live movement simulation</div>
+        <div className="map-live-badge"><i /> Estimated movement</div>
       )}
     </div>
   );

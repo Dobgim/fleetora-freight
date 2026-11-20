@@ -110,6 +110,21 @@ export async function fetchShipments(): Promise<Shipment[]> {
   return data.map((row) => toShipment(row, row.id));
 }
 
+/** Customer only: shipments assigned to the signed-in, verified account. */
+export async function fetchCustomerShipments(userId: string): Promise<Shipment[]> {
+  const client = requireClient();
+  const { error: claimError } = await client.rpc("claim_customer_shipments");
+  if (claimError) throw claimError;
+
+  const { data, error } = await client
+    .from("shipments")
+    .select("*")
+    .eq("customer_id", userId)
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return data.map((row) => toShipment(row, row.id));
+}
+
 /** Public: look up a single shipment by tracking number. */
 export async function trackShipment(trackingNumber: string): Promise<Shipment | null> {
   const { data, error } = await requireClient().rpc("track_shipment", { p_tracking_number: trackingNumber });

@@ -2,7 +2,7 @@
 -- Then replace the email below and run this once from the Supabase SQL Editor.
 do $$
 declare
-  admin_email text := lower('REPLACE_WITH_ADMIN_EMAIL');
+  admin_email text := lower('info@prestigefreightcargo.com');
   admin_user_id uuid;
 begin
   select id into admin_user_id
