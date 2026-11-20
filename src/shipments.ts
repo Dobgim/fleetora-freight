@@ -1,3 +1,6 @@
+import { supabase, supabaseConfigurationError } from "./supabase";
+import type { Database } from "./database.types";
+
 export type ShipmentStatus = "In transit" | "Delivered" | "Pending" | "Delayed" | "On hold";
 export type ShipmentMode = "Road freight" | "Ocean freight" | "Air freight";
 
@@ -7,6 +10,9 @@ export type Coordinate = {
 };
 
 export type Shipment = {
+  /** Database row id (uuid). Empty for the public tracking view. */
+  dbId: string;
+  /** Tracking number shown to customers, e.g. PFC-7KQ4-M29X. */
   id: string;
   recipient: string;
   initials: string;
@@ -21,8 +27,6 @@ export type Shipment = {
   progress: number;
   startedAt: number | null;
 };
-
-export const STORAGE_KEY = "fleetora.shipments.v1";
 
 export const CITY_OPTIONS: { name: string; position: Coordinate }[] = [
   { name: "Newark, US", position: { lat: 40.6895, lng: -74.1745 } },
@@ -60,60 +64,88 @@ export function shipmentProgress(shipment: Shipment, now = Date.now()): number {
   return Math.min(1, shipment.progress + Math.max(0, now - shipment.startedAt) / durationMs);
 }
 
-function demoShipment(
-  shipment: Omit<Shipment, "progress" | "startedAt">,
-  progress: number,
-): Shipment {
+type ShipmentRow = Database["public"]["Tables"]["shipments"]["Row"];
+type TrackedRow = Database["public"]["Functions"]["track_shipment"]["Returns"][number];
+
+function initialsFor(name: string): string {
+  return name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase() || "?";
+}
+
+function formatDate(isoDate: string): string {
+  const [year, month, day] = isoDate.split("-").map(Number);
+  return new Date(year, month - 1, day).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
+function toShipment(row: TrackedRow | ShipmentRow, dbId = ""): Shipment {
   return {
-    ...shipment,
-    progress,
-    startedAt: shipment.status === "In transit" ? Date.now() : null,
+    dbId,
+    id: row.tracking_number,
+    recipient: row.recipient_name,
+    initials: initialsFor(row.recipient_name),
+    route: `${row.origin_name} → ${row.destination_name}`,
+    originName: row.origin_name,
+    destinationName: row.destination_name,
+    origin: { lat: row.origin_lat, lng: row.origin_lng },
+    destination: { lat: row.destination_lat, lng: row.destination_lng },
+    mode: row.mode as ShipmentMode,
+    date: formatDate(row.estimated_delivery),
+    status: row.status as ShipmentStatus,
+    progress: Number(row.progress),
+    startedAt: row.started_at ? Date.parse(row.started_at) : null,
   };
 }
 
-export const initialShipments: Shipment[] = [
-  demoShipment({ id: "FLE-7KQ4-M29X", recipient: "Northstar Furniture", initials: "NF", route: "Newark, US → Rotterdam, NL", originName: "Newark, US", destinationName: "Rotterdam, NL", origin: CITY_OPTIONS[0].position, destination: CITY_OPTIONS[1].position, mode: "Ocean freight", date: "Nov 23, 2026", status: "In transit" }, 0.34),
-  demoShipment({ id: "FLE-2XP8-B14C", recipient: "Marlow & Finch", initials: "MF", route: "Los Angeles, US → Chicago, US", originName: "Los Angeles, US", destinationName: "Chicago, US", origin: CITY_OPTIONS[2].position, destination: CITY_OPTIONS[3].position, mode: "Road freight", date: "Nov 22, 2026", status: "In transit" }, 0.42),
-  demoShipment({ id: "FLE-9LD3-Q61A", recipient: "Goodwell Market", initials: "GM", route: "London, UK → Toronto, CA", originName: "London, UK", destinationName: "Toronto, CA", origin: CITY_OPTIONS[4].position, destination: CITY_OPTIONS[5].position, mode: "Air freight", date: "Nov 21, 2026", status: "Delivered" }, 1),
-  demoShipment({ id: "FLE-4HT6-W82N", recipient: "Aster Home", initials: "AH", route: "Houston, US → Miami, US", originName: "Houston, US", destinationName: "Miami, US", origin: CITY_OPTIONS[6].position, destination: CITY_OPTIONS[7].position, mode: "Road freight", date: "Nov 24, 2026", status: "On hold" }, 0.18),
-  demoShipment({ id: "FLE-5ZM1-R73P", recipient: "Paw & Co.", initials: "PC", route: "New York, US → Dublin, IE", originName: "New York, US", destinationName: "Dublin, IE", origin: CITY_OPTIONS[8].position, destination: CITY_OPTIONS[9].position, mode: "Air freight", date: "Nov 25, 2026", status: "Delayed" }, 0.56),
-];
-
-function isShipment(value: unknown): value is Shipment {
-  if (typeof value !== "object" || value === null) return false;
-  const shipment = value as Partial<Shipment>;
-  return typeof shipment.id === "string"
-    && typeof shipment.recipient === "string"
-    && typeof shipment.route === "string"
-    && typeof shipment.originName === "string"
-    && typeof shipment.destinationName === "string"
-    && typeof shipment.origin?.lat === "number"
-    && typeof shipment.origin?.lng === "number"
-    && typeof shipment.destination?.lat === "number"
-    && typeof shipment.destination?.lng === "number"
-    && (shipment.mode === "Road freight" || shipment.mode === "Ocean freight" || shipment.mode === "Air freight")
-    && (shipment.status === "In transit" || shipment.status === "Delivered" || shipment.status === "Pending" || shipment.status === "Delayed" || shipment.status === "On hold")
-    && typeof shipment.progress === "number"
-    && (typeof shipment.startedAt === "number" || shipment.startedAt === null);
+function requireClient() {
+  if (!supabase) throw new Error(supabaseConfigurationError);
+  return supabase;
 }
 
-export function readShipments(): Shipment[] {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (!stored) return initialShipments;
-    const parsed: unknown = JSON.parse(stored);
-    if (Array.isArray(parsed) && parsed.every(isShipment)) return parsed;
-    console.error("Saved shipment data is invalid; showing the demo shipments instead.");
-  } catch (error) {
-    console.error("Could not read saved shipment data; showing the demo shipments instead.", error);
-  }
-  return initialShipments;
+/** Admin only: every shipment, newest first (enforced by row level security). */
+export async function fetchShipments(): Promise<Shipment[]> {
+  const { data, error } = await requireClient()
+    .from("shipments")
+    .select("*")
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return data.map((row) => toShipment(row, row.id));
 }
 
-export function saveShipments(shipments: Shipment[]): void {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(shipments));
-  } catch (error) {
-    console.error("Could not save shipment changes in this browser.", error);
-  }
+/** Public: look up a single shipment by tracking number. */
+export async function trackShipment(trackingNumber: string): Promise<Shipment | null> {
+  const { data, error } = await requireClient().rpc("track_shipment", { p_tracking_number: trackingNumber });
+  if (error) throw error;
+  return data[0] ? toShipment(data[0]) : null;
+}
+
+export async function createShipment(input: {
+  recipient: string;
+  recipientEmail: string;
+  origin: { name: string; position: Coordinate };
+  destination: { name: string; position: Coordinate };
+  mode: ShipmentMode;
+  estimatedDelivery: string;
+}): Promise<Shipment> {
+  const { data, error } = await requireClient()
+    .from("shipments")
+    .insert({
+      recipient_name: input.recipient,
+      recipient_email: input.recipientEmail,
+      origin_name: input.origin.name,
+      destination_name: input.destination.name,
+      origin_lat: input.origin.position.lat,
+      origin_lng: input.origin.position.lng,
+      destination_lat: input.destination.position.lat,
+      destination_lng: input.destination.position.lng,
+      mode: input.mode,
+      estimated_delivery: input.estimatedDelivery,
+    })
+    .select("*")
+    .single();
+  if (error) throw error;
+  return toShipment(data, data.id);
+}
+
+export async function updateShipmentStatus(dbId: string, status: ShipmentStatus): Promise<void> {
+  const { error } = await requireClient().rpc("set_shipment_status", { p_shipment_id: dbId, p_status: status });
+  if (error) throw error;
 }

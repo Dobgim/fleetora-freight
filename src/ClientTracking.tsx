@@ -1,10 +1,9 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import GoogleShipmentMap from "./GoogleShipmentMap";
 import {
-  readShipments,
   shipmentProgress,
   SPEED_KMH,
-  STORAGE_KEY,
+  trackShipment,
   type Shipment,
 } from "./shipments";
 
@@ -12,28 +11,51 @@ function trackingCodeFromUrl(): string {
   return new URLSearchParams(window.location.search).get("code")?.trim().toUpperCase() ?? "";
 }
 
+const REFRESH_MS = 30_000;
+
 export default function ClientTracking() {
-  const [shipments, setShipments] = useState<Shipment[]>(readShipments);
+  const [shipment, setShipment] = useState<Shipment | null>(null);
   const [trackingCode, setTrackingCode] = useState(trackingCodeFromUrl);
   const [query, setQuery] = useState(trackingCodeFromUrl);
   const [now, setNow] = useState(Date.now());
+  const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState("");
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 1000);
-    function syncShipments(event: StorageEvent) {
-      if (event.key === STORAGE_KEY) setShipments(readShipments());
-    }
-    window.addEventListener("storage", syncShipments);
-    return () => {
-      window.clearInterval(timer);
-      window.removeEventListener("storage", syncShipments);
-    };
+    return () => window.clearInterval(timer);
   }, []);
 
-  const shipment = useMemo(
-    () => shipments.find((item) => item.id.toUpperCase() === trackingCode),
-    [shipments, trackingCode],
-  );
+  useEffect(() => {
+    if (!trackingCode) {
+      setShipment(null);
+      setLoadError("");
+      return;
+    }
+    let active = true;
+    async function load(showSpinner: boolean) {
+      if (showSpinner) setLoading(true);
+      try {
+        const result = await trackShipment(trackingCode);
+        if (!active) return;
+        setShipment(result);
+        setLoadError("");
+      } catch (error) {
+        if (!active) return;
+        console.error("Could not load shipment", error);
+        setLoadError("We couldn't reach the tracking service. Please try again in a moment.");
+      } finally {
+        if (active && showSpinner) setLoading(false);
+      }
+    }
+    void load(true);
+    const refresh = window.setInterval(() => void load(false), REFRESH_MS);
+    return () => {
+      active = false;
+      window.clearInterval(refresh);
+    };
+  }, [trackingCode]);
+
   const mappedShipments = useMemo(() => shipment ? [shipment] : [], [shipment]);
   const progress = shipment ? shipmentProgress(shipment, now) : 0;
   const speed = shipment ? SPEED_KMH[shipment.mode] : 0;
@@ -41,7 +63,11 @@ export default function ClientTracking() {
 
   function searchShipment(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setTrackingCode(query.trim().toUpperCase());
+    const code = query.trim().toUpperCase();
+    setTrackingCode(code);
+    const url = new URL(window.location.href);
+    if (code) url.searchParams.set("code", code); else url.searchParams.delete("code");
+    window.history.replaceState(null, "", url);
   }
 
   return (
@@ -82,7 +108,7 @@ export default function ClientTracking() {
             <section className="client-map-card">
               <div className="client-map-heading"><div><h2>Shipment location</h2><p>{isMoving ? `Moving at ${speed.toLocaleString()} km/h · Updated just now` : shipment.status === "Delivered" ? "Package delivered to its destination" : "Package is stationary while its status is " + shipment.status.toLowerCase()}</p></div><span className={`map-pulse ${isMoving ? "moving" : ""}`}><i />{isMoving ? "MOVING" : shipment.status.toUpperCase()}</span></div>
               <GoogleShipmentMap shipments={mappedShipments} selectedId={shipment.id} className="client-map" />
-              <div className="simulation-note"><span>ⓘ</span> Demo tracking uses simulated movement at the selected service speed. Connect carrier GPS or an operations backend for actual live positions.</div>
+              <div className="simulation-note"><span>ⓘ</span> Position is estimated from the service speed and the latest status update from our operations team.</div>
             </section>
 
             <section className="tracking-timeline">
@@ -95,10 +121,10 @@ export default function ClientTracking() {
             </section>
           </>
         ) : (
-          <section className="tracking-not-found"><span>?</span><h2>{trackingCode ? "We couldn't find that shipment" : "Enter a tracking number"}</h2><p>{trackingCode ? "Check the number and try again. Tracking numbers are case-insensitive." : "Your tracking number is in your booking confirmation."}</p></section>
+          <section className="tracking-not-found"><span>{loading ? "…" : "?"}</span><h2>{loading ? "Looking up your shipment" : loadError ? "Tracking is unavailable" : trackingCode ? "We couldn't find that shipment" : "Enter a tracking number"}</h2><p>{loading ? "One moment while we fetch the latest status." : loadError || (trackingCode ? "Check the number and try again. Tracking numbers look like PFC-7KQ4-M29X." : "Your tracking number is in your booking confirmation.")}</p></section>
         )}
       </main>
-      <footer className="tracking-footer"><span>© 2026 Prestige Freight Cargo</span><a href="mailto:info@fleetorafreights.com">Need help? Contact our team</a></footer>
+      <footer className="tracking-footer"><span>© 2026 Prestige Freight Cargo</span><a href="mailto:info@prestigefreightcargo.com">Need help? Contact our team</a></footer>
     </div>
   );
 }

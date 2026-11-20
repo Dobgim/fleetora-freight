@@ -1,9 +1,9 @@
-import AdminDashboard from "./AdminDashboard";
+import AdminGate from "./AdminGate";
 import ClientTracking from "./ClientTracking";
 
 export default function App() {
   if (window.location.pathname.startsWith("/admin")) {
-    return <AdminDashboard />;
+    return <AdminGate />;
   }
   if (window.location.pathname.startsWith("/track")) {
     return <ClientTracking />;

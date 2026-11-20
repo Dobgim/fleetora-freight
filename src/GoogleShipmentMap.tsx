@@ -4,7 +4,7 @@ import { shipmentProgress, type Shipment } from "./shipments";
 declare global {
   interface Window {
     google?: typeof google;
-    fleetoraMapsReady?: () => void;
+    prestigeMapsReady?: () => void;
   }
 }
 
@@ -32,13 +32,13 @@ function loadGoogleMaps(): Promise<void> {
   mapsReady = new Promise((resolve, reject) => {
     const script = document.createElement("script");
     script.async = true;
-    window.fleetoraMapsReady = () => {
-      delete window.fleetoraMapsReady;
+    window.prestigeMapsReady = () => {
+      delete window.prestigeMapsReady;
       resolve();
     };
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&v=weekly&loading=async&callback=fleetoraMapsReady`;
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&v=weekly&loading=async&callback=prestigeMapsReady`;
     script.onerror = () => {
-      delete window.fleetoraMapsReady;
+      delete window.prestigeMapsReady;
       mapsReady = null;
       reject(new Error("Google Maps could not be loaded. Check the key, API access, and network connection."));
     };
