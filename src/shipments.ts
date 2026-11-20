@@ -308,6 +308,16 @@ export async function updateShipmentDetails(dbId: string, input: ShipmentInput):
   return { shipment: toShipment(data, data.id), notificationError };
 }
 
+export async function deleteShipment(dbId: string): Promise<void> {
+  const { error } = await requireClient()
+    .from("shipments")
+    .delete()
+    .eq("id", dbId)
+    .select("id")
+    .single();
+  if (error) throw error;
+}
+
 export async function updateShipmentStatus(dbId: string, status: ShipmentStatus): Promise<string | null> {
   const { error } = await requireClient().rpc("set_shipment_status", { p_shipment_id: dbId, p_status: status });
   if (error) throw error;

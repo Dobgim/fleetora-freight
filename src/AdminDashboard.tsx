@@ -4,6 +4,7 @@ import GoogleShipmentMap, { geocodeShipmentLocation } from "./GoogleShipmentMap"
 import { supabase } from "./supabase";
 import {
   createShipment,
+  deleteShipment,
   fetchShipments,
   SPEED_KMH,
   updateShipmentDetails,
@@ -233,6 +234,7 @@ export default function AdminDashboard({ user, onSignOut }: { user: User; onSign
   }
 
   function openEditShipmentModal(shipment: Shipment) {
+    setStatusMenuId(null);
     setFormError("");
     setCreatedTrackingId(null);
     setEditingShipmentId(shipment.dbId);
@@ -338,6 +340,22 @@ export default function AdminDashboard({ user, onSignOut }: { user: User; onSign
     }
   }
 
+  async function removeShipment(shipment: Shipment) {
+    setStatusMenuId(null);
+    if (!window.confirm(`Delete shipment ${shipment.id}? This permanently removes its tracking record and cannot be undone.`)) return;
+    try {
+      await deleteShipment(shipment.dbId);
+      setShipments((current) => current.filter((item) => item.dbId !== shipment.dbId));
+      setSelectedShipmentId((current) => current === shipment.id ? undefined : current);
+      setLoadError("");
+    } catch (error) {
+      console.error("Could not delete shipment", error);
+      setLoadError(error instanceof Error
+        ? `Couldn't delete ${shipment.id}: ${error.message}`
+        : `Couldn't delete ${shipment.id}. Please try again.`);
+    }
+  }
+
   function exportShipments() {
     const rows = [
       ["Tracking ID", "Customer", "Route", "Service", "ETA", "Status"],
@@ -438,7 +456,7 @@ export default function AdminDashboard({ user, onSignOut }: { user: User; onSign
               <button className="table-search-mobile" onClick={() => document.querySelector<HTMLInputElement>(".admin-search input")?.focus()} aria-label="Search shipments"><Icon name="search" size={17} /></button>
             </div>
             <div className="table-scroll"><table className="shipment-table"><thead><tr><th>TRACKING ID</th><th>CUSTOMER</th><th>ROUTE</th><th>SERVICE</th><th>ETA</th><th>STATUS</th><th aria-label="Actions" /></tr></thead>
-              <tbody>{filteredShipments.length ? filteredShipments.map((shipment) => <tr key={shipment.id}><td><a className="tracking-id" href={`/track?code=${encodeURIComponent(shipment.id)}`} target="_blank" rel="noreferrer">{shipment.id}</a></td><td><span className="customer-cell"><i>{shipment.initials}</i><b>{shipment.recipient}</b></span></td><td className="route-cell">{shipment.route}</td><td><span className="service-cell"><i className={`service-mark ${shipment.mode.startsWith("Air") ? "air-mark" : shipment.mode.startsWith("Road") ? "road-mark" : ""}`} />{shipment.mode}</span></td><td className="eta-cell">{shipment.date}</td><td><span className={`shipment-status ${shipment.status.toLowerCase().replace(" ", "-")}`}><i />{shipment.status}</span></td><td><div className="row-action-wrap"><button className="row-more" onClick={() => openEditShipmentModal(shipment)}>Edit</button><button className="row-more" aria-label={`Change status for ${shipment.id}`} aria-expanded={statusMenuId === shipment.id} onClick={() => setStatusMenuId(statusMenuId === shipment.id ? null : shipment.id)}>Change</button>{statusMenuId === shipment.id && <div className="row-status-menu" role="menu" aria-label={`Change status for ${shipment.id}`}>{(["In transit", "On hold", "Delayed", "Delivered", "Pending"] as ShipmentStatus[]).map((status) => <button key={status} role="menuitem" className={status === shipment.status ? "current" : ""} onClick={() => void changeShipmentStatus(shipment, status)}><i className={`status-menu-dot ${status.toLowerCase().replace(" ", "-")}`} />{status}{status === shipment.status && <span>Current</span>}</button>)}</div>}</div></td></tr>) : <tr><td className="empty-row" colSpan={7}>No shipments match your search.</td></tr>}</tbody>
+              <tbody>{filteredShipments.length ? filteredShipments.map((shipment) => <tr key={shipment.id}><td><a className="tracking-id" href={`/track?code=${encodeURIComponent(shipment.id)}`} target="_blank" rel="noreferrer">{shipment.id}</a></td><td><span className="customer-cell"><i>{shipment.initials}</i><b>{shipment.recipient}</b></span></td><td className="route-cell">{shipment.route}</td><td><span className="service-cell"><i className={`service-mark ${shipment.mode.startsWith("Air") ? "air-mark" : shipment.mode.startsWith("Road") ? "road-mark" : ""}`} />{shipment.mode}</span></td><td className="eta-cell">{shipment.date}</td><td><span className={`shipment-status ${shipment.status.toLowerCase().replace(" ", "-")}`}><i />{shipment.status}</span></td><td><div className="row-action-wrap"><button className="row-more" aria-label={`Edit shipment ${shipment.id}`} onClick={() => openEditShipmentModal(shipment)}>Edit</button><button className="row-more" aria-label={`Change status for ${shipment.id}`} aria-expanded={statusMenuId === shipment.id} onClick={() => setStatusMenuId(statusMenuId === shipment.id ? null : shipment.id)}>Change</button><button className="row-delete" aria-label={`Delete shipment ${shipment.id}`} onClick={() => void removeShipment(shipment)}>Delete</button>{statusMenuId === shipment.id && <div className="row-status-menu" role="menu" aria-label={`Change status for ${shipment.id}`}>{(["In transit", "On hold", "Delayed", "Delivered", "Pending"] as ShipmentStatus[]).map((status) => <button key={status} role="menuitem" className={status === shipment.status ? "current" : ""} onClick={() => void changeShipmentStatus(shipment, status)}><i className={`status-menu-dot ${status.toLowerCase().replace(" ", "-")}`} />{status}{status === shipment.status && <span>Current</span>}</button>)}</div>}</div></td></tr>) : <tr><td className="empty-row" colSpan={7}>No shipments match your search.</td></tr>}</tbody>
             </table></div>
             <div className="table-footer"><span>Showing <b>{filteredShipments.length ? 1 : 0}–{filteredShipments.length}</b> of <b>{shipments.length}</b> shipments</span><div><button disabled aria-label="Previous page">‹</button><button className="current-page">1</button><button disabled aria-label="Next page">›</button></div></div>
           </section>}

@@ -48,7 +48,7 @@ To create the administrator:
 2. Run `supabase/promote-admin.sql` in that project's SQL Editor.
 3. Sign in at `/admin`.
 
-The admin **Shipments** table has a **Change** action on each row to update its status. Creating a shipment automatically issues an invoice number with the issue date and a due date 30 days later; no price or tax is added. Recipients can download the invoice from the public tracking page. It includes sender and receiver contact details when those were supplied for the shipment, and its QR code opens that shipment's tracking page.
+The admin **Shipments** table has **Edit**, **Change**, and **Delete** actions on each row. Delete asks for confirmation and permanently removes the shipment and its tracking record. Creating a shipment automatically issues an invoice number with the issue date and a due date 30 days later; no price or tax is added. Recipients can download the invoice from the public tracking page. It includes sender and receiver contact details when those were supplied for the shipment, and its QR code opens that shipment's tracking page.
 
 To clear all existing shipment records, first confirm the project ref and take a backup, then run `supabase/clean-all-shipments.sql` manually in that project's SQL Editor. This permanently deletes every shipment and customer tracking record. It is intentionally not part of an automatic migration.
 

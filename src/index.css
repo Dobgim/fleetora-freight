@@ -1151,10 +1151,27 @@ button.row-more {
   font-weight: 600;
 }
 
+button.row-delete {
+  padding: 6px 8px;
+  border: 1px solid #f1d8d6;
+  border-radius: 5px;
+  color: #b94a43;
+  background: #fff;
+  cursor: pointer;
+  font-size: 9px;
+  font-weight: 600;
+}
+
 button.row-more:hover,
 button.row-more:focus-visible {
   border-color: #bdb8ef;
   background: #f7f6ff;
+}
+
+button.row-delete:hover,
+button.row-delete:focus-visible {
+  border-color: #dfaaa6;
+  background: #fff5f4;
 }
 
 .empty-row {
@@ -1567,6 +1584,7 @@ button.row-more:focus-visible {
 .row-action-wrap {
   position: relative;
   display: inline-flex;
+  gap: 4px;
 }
 
 .row-status-menu {
