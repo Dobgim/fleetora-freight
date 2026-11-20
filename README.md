@@ -25,6 +25,19 @@ Customer credentials are managed by Supabase Auth. Shipment records are linked t
 
 These `VITE_` values are included in browser code at build time; a `.env.local` file does not make them secret. Supabase publishable keys and browser Maps keys are expected to be public and must be restricted with Supabase RLS and Google Cloud API/referrer restrictions. Never add a Supabase service-role/secret key, database password, or personal access token to a `VITE_` variable, the client app, or Git.
 
+Shipment email notifications use a Vercel serverless function and Hostinger SMTP. Configure these server-side environment variables in Vercel (and locally in `.env.local` when testing with `vercel dev`):
+
+| Variable | Purpose |
+| --- | --- |
+| `SMTP_HOST` | Hostinger SMTP server, normally `smtp.hostinger.com` |
+| `SMTP_PORT` | `465` for SSL or `587` for STARTTLS |
+| `SMTP_USER` | Hostinger mailbox address, such as `info@prestigefreightcargo.com` |
+| `SMTP_PASS` | That mailbox's password (keep it secret; never use a `VITE_` prefix) |
+| `SMTP_FROM` | Sender address; normally the same as `SMTP_USER` |
+| `PUBLIC_SITE_URL` | Public website URL used for tracking links in shipment emails |
+
+When an administrator creates a shipment or changes its status, Vercel verifies the signed-in Supabase administrator and sends separate notifications to the sender and receiver. Both email fields are required for new shipments. If the shipment saves but email delivery fails, the admin dashboard displays an error; the shipment remains saved, so verify SMTP settings before relying on notifications.
+
 ## Supabase setup
 
 Apply migrations in `supabase/migrations/` to the intended project. The migrations add verified-email shipment linking, keep stored journey progress monotonic when status changes, add shipment contact and package details, and support automatically issued invoices on shipment creation for public tracking downloads. The admin geocodes entered origin and destination locations for map display, so enable the Google Geocoding API for the Maps key. Map movement is an estimate based on route, service speed and shipment status; actual carrier GPS requires a trusted location feed.
@@ -41,9 +54,9 @@ To clear all existing shipment records, first confirm the project ref and take a
 
 ## Vercel deployment
 
-Import the GitHub repository into Vercel and set the four environment variables above in the Vercel project settings for each deployment environment. Redeploy after changing variables. `vercel.json` routes app paths such as `/account` and `/admin/shipments` back to the app entry point.
+Import the GitHub repository into Vercel and set the four browser environment variables and the SMTP/site URL variables above in the Vercel project settings for each deployment environment. Redeploy after changing variables. `vercel.json` routes app paths such as `/account` and `/admin/shipments` back to the app entry point, while Vercel deploys the email API under `/api/`.
 
-Set Supabase Auth's allowed site URL and redirect URLs to the deployed domain (including `/account`). Keep local secrets in the ignored `.env.local`; do not commit it.
+Set Supabase Auth's allowed site URL and redirect URLs to the deployed domain (including `/account`). Keep local secrets in the ignored `.env.local`; do not commit it. The website can stay hosted on Vercel while its email mailbox stays with Hostinger; only the Vercel SMTP settings are needed for the website to send mail.
 
 ## Build
 

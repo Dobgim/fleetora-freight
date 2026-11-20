@@ -166,6 +166,30 @@ function requireClient() {
   return supabase;
 }
 
+async function notifyShipment(dbId: string, event: "created" | "updated"): Promise<string | null> {
+  const client = requireClient();
+  const { data: sessionData, error: sessionError } = await client.auth.getSession();
+  if (sessionError) return sessionError.message;
+  const accessToken = sessionData.session?.access_token;
+  if (!accessToken) return "You must be signed in as an administrator to send shipment notifications.";
+
+  try {
+    const response = await fetch("/api/notifications/shipment", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ shipmentId: dbId, event }),
+    });
+    const result = await response.json() as { error?: string };
+    if (!response.ok) return result.error ?? "The email service could not send shipment notifications.";
+    return null;
+  } catch (error) {
+    return error instanceof Error ? error.message : "The email service could not be reached.";
+  }
+}
+
 /** Admin only: every shipment, newest first (enforced by row level security). */
 export async function fetchShipments(): Promise<Shipment[]> {
   const { data, error } = await requireClient()
@@ -217,7 +241,7 @@ export async function createShipment(input: {
   senderAddress: string;
   recipientAddress: string;
   packageDescription: string;
-}): Promise<Shipment> {
+}): Promise<{ shipment: Shipment; notificationError: string | null }> {
   const invoice = createInvoiceDetails();
   const { data, error } = await requireClient()
     .from("shipments")
@@ -256,10 +280,12 @@ export async function createShipment(input: {
     .select("*")
     .single();
   if (error) throw error;
-  return toShipment(data, data.id);
+  const notificationError = await notifyShipment(data.id, "created");
+  return { shipment: toShipment(data, data.id), notificationError };
 }
 
-export async function updateShipmentStatus(dbId: string, status: ShipmentStatus): Promise<void> {
+export async function updateShipmentStatus(dbId: string, status: ShipmentStatus): Promise<string | null> {
   const { error } = await requireClient().rpc("set_shipment_status", { p_shipment_id: dbId, p_status: status });
   if (error) throw error;
+  return notifyShipment(dbId, "updated");
 }

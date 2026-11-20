@@ -249,7 +249,7 @@ export default function AdminDashboard({ user, onSignOut }: { user: User; onSign
         geocodeShipmentLocation(form.origin.trim()),
         geocodeShipmentLocation(form.destination.trim()),
       ]);
-      const created = await createShipment({
+      const { shipment: created, notificationError } = await createShipment({
         recipient,
         recipientEmail: form.recipientEmail.trim(),
         origin: { name: form.origin.trim(), position: originPosition },
@@ -275,6 +275,10 @@ export default function AdminDashboard({ user, onSignOut }: { user: User; onSign
       setSearch("");
       setActivePage("Shipments");
       setCreatedTrackingId(created.id);
+      if (notificationError) {
+        console.error("Shipment was created but email notifications failed", notificationError);
+        setFormError(`Shipment saved, but the email notifications failed: ${notificationError}`);
+      }
     } catch (error) {
       console.error("Could not create shipment", error);
       setFormError(error instanceof Error ? error.message : "Couldn't save the shipment. Please try again.");
@@ -287,8 +291,12 @@ export default function AdminDashboard({ user, onSignOut }: { user: User; onSign
     setStatusMenuId(null);
     if (shipment.status === status) return;
     try {
-      await updateShipmentStatus(shipment.dbId, status);
+      const notificationError = await updateShipmentStatus(shipment.dbId, status);
       await reloadShipments();
+      if (notificationError) {
+        console.error("Shipment status was updated but email notifications failed", notificationError);
+        setLoadError(`Status updated for ${shipment.id}, but email notifications failed: ${notificationError}`);
+      }
     } catch (error) {
       console.error("Could not update shipment status", error);
       setLoadError(`Couldn't update ${shipment.id}. Please try again.`);
@@ -416,6 +424,7 @@ export default function AdminDashboard({ user, onSignOut }: { user: User; onSign
           </div>
           {createdTrackingId ? <div className="shipment-created-confirmation" role="status" aria-live="polite">
             <span>Shipment saved successfully</span>
+            {formError && <p className="admin-auth-error" role="alert">{formError}</p>}
             <p>Your tracking ID is</p>
             <strong>{createdTrackingId}</strong>
             <p>Open this tracking ID to see the shipment and its invoice.</p>
@@ -426,8 +435,8 @@ export default function AdminDashboard({ user, onSignOut }: { user: User; onSign
               <label>Shipment type *<select required value={shipmentForm.mode} onChange={(event) => setShipmentForm({ ...shipmentForm, mode: event.target.value as ShipmentMode })}><option>Road freight</option><option>Ocean freight</option><option>Air freight</option></select></label>
               <label>Sender name *<input autoFocus required value={shipmentForm.senderName} onChange={(event) => setShipmentForm({ ...shipmentForm, senderName: event.target.value })} placeholder="Sender name" /></label>
               <label>Receiver name *<input required value={shipmentForm.recipientName} onChange={(event) => setShipmentForm({ ...shipmentForm, recipientName: event.target.value })} placeholder="Receiver name" /></label>
-              <label>Sender email<input type="email" value={shipmentForm.senderEmail} onChange={(event) => setShipmentForm({ ...shipmentForm, senderEmail: event.target.value })} placeholder="sender@example.com" /></label>
-              <label>Receiver email<input type="email" value={shipmentForm.recipientEmail} onChange={(event) => setShipmentForm({ ...shipmentForm, recipientEmail: event.target.value })} placeholder="receiver@example.com" /></label>
+              <label>Sender email *<input type="email" required value={shipmentForm.senderEmail} onChange={(event) => setShipmentForm({ ...shipmentForm, senderEmail: event.target.value })} placeholder="sender@example.com" /></label>
+              <label>Receiver email *<input type="email" required value={shipmentForm.recipientEmail} onChange={(event) => setShipmentForm({ ...shipmentForm, recipientEmail: event.target.value })} placeholder="receiver@example.com" /></label>
               <label>Sender number<input type="tel" value={shipmentForm.senderPhone} onChange={(event) => setShipmentForm({ ...shipmentForm, senderPhone: event.target.value })} placeholder="e.g. +1 234 567 8900" /></label>
               <label>Receiver number<input type="tel" value={shipmentForm.recipientPhone} onChange={(event) => setShipmentForm({ ...shipmentForm, recipientPhone: event.target.value })} placeholder="e.g. +1 987 654 3210" /></label>
               <label>Origin *<input required value={shipmentForm.origin} onChange={(event) => setShipmentForm({ ...shipmentForm, origin: event.target.value })} placeholder="City, Country" /></label>
