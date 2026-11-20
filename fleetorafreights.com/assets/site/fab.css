@@ -1,0 +1,19 @@
+/* Floating contact button (Settings > Contact details > Floating contact button) */
+.fab{position:fixed;right:max(18px,env(safe-area-inset-right,0px));bottom:max(18px,env(safe-area-inset-bottom,0px));z-index:70;font-family:var(--f)}
+.fab-b{width:58px;height:58px;border-radius:50%;border:0;background:var(--acc);color:#fff;display:grid;place-items:center;cursor:pointer;box-shadow:0 14px 30px -10px rgba(20,23,27,.45);transition:transform .2s}
+.fab-b:hover{transform:translateY(-2px)}
+.fab-b svg{width:26px;height:26px;fill:currentColor;transition:transform .25s}
+.fab.open .fab-b svg{transform:rotate(90deg)}
+.fab-p{position:absolute;right:0;bottom:72px;width:min(300px,calc(100vw - 36px));padding:10px;border-radius:22px;background:rgba(255,255,255,.94);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border:1px solid rgba(255,255,255,.8);box-shadow:0 30px 60px -24px rgba(34,28,84,.45);opacity:0;transform:translateY(10px) scale(.98);transform-origin:bottom right;pointer-events:none;transition:opacity .2s,transform .2s}
+.fab.open .fab-p{opacity:1;transform:none;pointer-events:auto}
+.fab-p .h{padding:8px 10px 10px;font-size:14px;font-weight:700;color:var(--ink)}
+.fab-p .h small{display:block;font-weight:500;font-size:12.5px;color:var(--soft);margin-top:2px}
+.fab-p a,.fab-p button.it{display:flex;align-items:center;gap:12px;width:100%;padding:11px 10px;border:0;border-radius:14px;background:none;font:600 14.5px var(--f);color:var(--ink);text-decoration:none;cursor:pointer;text-align:left}
+.fab-p a:hover,.fab-p button.it:hover{background:rgba(64,56,154,.07)}
+.fab-p a svg,.fab-p button.it svg{width:20px;height:20px;fill:var(--dark-2);flex:none}
+.fab-p a span small,.fab-p button.it span small{display:block;font-weight:500;font-size:12.5px;color:var(--soft)}
+.fab-p form{display:flex;gap:6px;margin:6px 4px 4px;padding-top:10px;border-top:1px solid #efeef5}
+.fab-p form input{flex:1;min-width:0;border:1px solid #e3e1ee;border-radius:12px;padding:10px 12px;font:600 14px var(--f);color:var(--ink)}
+.fab-p form input:focus{outline:none;border-color:var(--dark-2)}
+.fab-p form button{border:0;border-radius:12px;padding:0 14px;background:var(--dark);color:#fff;font:600 14px var(--f);cursor:pointer}
+@media print{.fab{display:none}}

@@ -1,0 +1,7 @@
+node_modules
+dist
+*.tsbuildinfo
+/bootstrap.smartsuppchat.com/
+/fonts.googleapis.com/
+/fonts.gstatic.com/
+/www.smartsuppchat.com/
