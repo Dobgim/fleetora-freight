@@ -158,6 +158,7 @@ export default function AdminDashboard({ user, onSignOut }: { user: User; onSign
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
+  const [createdTrackingId, setCreatedTrackingId] = useState<string | null>(null);
   const [shipmentForm, setShipmentForm] = useState<ShipmentFormState>(newShipmentForm);
 
   useEffect(() => {
@@ -233,6 +234,13 @@ export default function AdminDashboard({ user, onSignOut }: { user: User; onSign
     setMobileMenuOpen(false);
   }
 
+  function openNewShipmentModal() {
+    setFormError("");
+    setCreatedTrackingId(null);
+    setShipmentForm(newShipmentForm());
+    setModalOpen(true);
+  }
+
   async function addShipment(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = shipmentForm;
@@ -292,7 +300,7 @@ export default function AdminDashboard({ user, onSignOut }: { user: User; onSign
       setStatusFilter("All shipments");
       setSearch("");
       setActivePage("Shipments");
-      setModalOpen(false);
+      setCreatedTrackingId(created.id);
     } catch (error) {
       console.error("Could not create shipment", error);
       setFormError("Couldn't save the shipment. Please try again.");
@@ -373,7 +381,7 @@ export default function AdminDashboard({ user, onSignOut }: { user: User; onSign
         <main className="admin-content">
           <div className="page-heading">
             <div><div className="welcome-line"><span className="status-live" /> {todayLabel}</div><h1>{activePage === "Overview" ? `${greeting()}, ${firstName}` : pageTitle}</h1><p>{activePage === "Overview" ? "Here's what's happening with your freight today." : `Manage your ${pageTitle.toLowerCase()} and keep every delivery moving.`}</p></div>
-            {(activePage === "Overview" || activePage === "Shipments") && <div className="heading-actions"><button className="button-secondary" onClick={exportShipments}><Icon name="download" size={17} /> Export</button><button className="button-primary" onClick={() => setModalOpen(true)}><Icon name="plus" size={18} /> New shipment</button></div>}
+            {(activePage === "Overview" || activePage === "Shipments") && <div className="heading-actions"><button className="button-secondary" onClick={exportShipments}><Icon name="download" size={17} /> Export</button><button className="button-primary" onClick={openNewShipmentModal}><Icon name="plus" size={18} /> New shipment</button></div>}
           </div>
 
           {loadError && <p className="admin-load-error" role="alert">{loadError}</p>}
@@ -431,10 +439,16 @@ export default function AdminDashboard({ user, onSignOut }: { user: User; onSign
       {modalOpen && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setModalOpen(false); }}>
         <section className="shipment-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
           <div className="modal-heading">
-            <div><h2 id="modal-title">Create New Shipment</h2></div>
+            <div><h2 id="modal-title">{createdTrackingId ? "Shipment created" : "Create New Shipment"}</h2></div>
             <button className="icon-button" aria-label="Close" onClick={() => setModalOpen(false)}><Icon name="close" /></button>
           </div>
-          <form onSubmit={addShipment}>
+          {createdTrackingId ? <div className="shipment-created-confirmation" role="status" aria-live="polite">
+            <span>Shipment saved successfully</span>
+            <p>Your tracking ID is</p>
+            <strong>{createdTrackingId}</strong>
+            <p>Use this ID to track the shipment.</p>
+            <div className="shipment-created-actions"><button className="button-primary" type="button" onClick={() => setModalOpen(false)}>Done</button></div>
+          </div> : <form onSubmit={addShipment}>
             <div className="shipment-form-grid">
               <label>Tracking ID<input value="Generated when saved" readOnly /></label>
               <label>Shipment type *<select required value={shipmentForm.mode} onChange={(event) => setShipmentForm({ ...shipmentForm, mode: event.target.value as ShipmentMode })}><option>Road freight</option><option>Ocean freight</option><option>Air freight</option></select></label>
@@ -468,7 +482,7 @@ export default function AdminDashboard({ user, onSignOut }: { user: User; onSign
             </section>
             {formError && <p className="admin-auth-error" role="alert">{formError}</p>}
             <div className="modal-form-actions"><button className="button-secondary" type="button" onClick={() => setModalOpen(false)}>Cancel</button><button className="button-primary" type="submit" disabled={saving}><Icon name="plus" size={17} /> {saving ? "Saving…" : "Save & Create Shipment"}</button></div>
-          </form>
+          </form>}
         </section>
       </div>}
     </div>

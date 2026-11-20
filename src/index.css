@@ -1417,6 +1417,42 @@ body {
   background: #fff0f0;
 }
 
+.shipment-created-confirmation {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  padding: 48px 24px;
+  text-align: center;
+}
+
+.shipment-created-confirmation > span {
+  color: #218557;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.shipment-created-confirmation p {
+  margin: 0;
+  color: #777987;
+  font-size: 12px;
+}
+
+.shipment-created-confirmation strong {
+  padding: 12px 18px;
+  border: 1px solid #d9e8df;
+  border-radius: 8px;
+  color: #245c3e;
+  background: #f0faf4;
+  font-size: 20px;
+  letter-spacing: .04em;
+}
+
+.shipment-created-actions {
+  display: flex;
+  justify-content: center;
+  margin-top: 12px;
+}
+
 .modal-form-actions {
   position: sticky;
   bottom: -24px;
