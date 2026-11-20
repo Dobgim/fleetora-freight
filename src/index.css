@@ -1335,12 +1335,6 @@ body {
   box-shadow: 0 0 0 3px rgba(101,88,211,.09);
 }
 
-.shipment-form-row {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-}
-
 .shipment-form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1349,72 +1343,6 @@ body {
 
 .shipment-form-full {
   grid-column: 1 / -1;
-}
-
-.timeline-events-editor {
-  display: grid;
-  gap: 12px;
-  padding: 16px;
-  border: 1px solid #e6e7ed;
-  border-radius: 9px;
-}
-
-.timeline-events-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.timeline-events-heading h3 {
-  margin: 0;
-  color: #555563;
-  font-size: 12px;
-  font-weight: 700;
-  text-transform: uppercase;
-}
-
-.timeline-events-heading .button-secondary {
-  min-height: 32px;
-  padding: 0 11px;
-  color: #6558d3;
-  font-size: 11px;
-}
-
-.timeline-event-row {
-  display: grid;
-  gap: 8px;
-  padding: 12px;
-  border: 1px solid #e6e7ed;
-  border-radius: 8px;
-  background: #fafaff;
-}
-
-.timeline-event-location {
-  position: relative;
-}
-
-.timeline-event-location input {
-  padding-right: 42px;
-}
-
-.timeline-event-remove {
-  position: absolute;
-  top: 4px;
-  right: 4px;
-  display: grid;
-  width: 30px;
-  height: 30px;
-  place-items: center;
-  border: 0;
-  border-radius: 50%;
-  color: #b24646;
-  background: transparent;
-  cursor: pointer;
-}
-
-.timeline-event-remove:hover {
-  background: #fff0f0;
 }
 
 .shipment-created-confirmation {
@@ -2190,8 +2118,7 @@ body {
     padding: 16px 16px 20px;
   }
 
-  .shipment-form-grid,
-  .shipment-form-row {
+  .shipment-form-grid {
     grid-template-columns: minmax(0, 1fr);
   }
 

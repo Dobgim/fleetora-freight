@@ -1,9 +1,8 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import type { User } from "@supabase/supabase-js";
-import GoogleShipmentMap from "./GoogleShipmentMap";
+import GoogleShipmentMap, { geocodeShipmentLocation } from "./GoogleShipmentMap";
 import { supabase } from "./supabase";
 import {
-  CITY_OPTIONS,
   createShipment,
   fetchShipments,
   SPEED_KMH,
@@ -83,12 +82,6 @@ function localDateValue(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
-type TimelineEventForm = {
-  time: string;
-  title: string;
-  location: string;
-};
-
 type ShipmentFormState = {
   senderName: string;
   senderEmail: string;
@@ -108,7 +101,6 @@ type ShipmentFormState = {
   senderAddress: string;
   recipientAddress: string;
   packageDescription: string;
-  timelineEvents: TimelineEventForm[];
 };
 
 function newShipmentForm(): ShipmentFormState {
@@ -119,8 +111,8 @@ function newShipmentForm(): ShipmentFormState {
     recipientName: "",
     recipientEmail: "",
     recipientPhone: "",
-    origin: CITY_OPTIONS[0].name,
-    destination: CITY_OPTIONS[1].name,
+    origin: "",
+    destination: "",
     mode: "Ocean freight",
     weightKg: "",
     status: "Pending",
@@ -131,7 +123,6 @@ function newShipmentForm(): ShipmentFormState {
     senderAddress: "",
     recipientAddress: "",
     packageDescription: "",
-    timelineEvents: [{ time: "", title: "", location: "" }],
   };
 }
 
@@ -245,24 +236,7 @@ export default function AdminDashboard({ user, onSignOut }: { user: User; onSign
     event.preventDefault();
     const form = shipmentForm;
     const recipient = form.recipientName.trim();
-    const origin = CITY_OPTIONS.find((city) => city.name === form.origin);
-    const destination = CITY_OPTIONS.find((city) => city.name === form.destination);
-    const timelineEvents = form.timelineEvents
-      .map((timelineEvent) => ({
-        time: timelineEvent.time.trim(),
-        title: timelineEvent.title.trim(),
-        location: timelineEvent.location.trim(),
-      }));
-    const nonEmptyEvents = timelineEvents.filter((timelineEvent) => (
-      timelineEvent.time || timelineEvent.title || timelineEvent.location
-    ));
-    if (nonEmptyEvents.some((timelineEvent) => (
-      !timelineEvent.time || !timelineEvent.title || !timelineEvent.location
-    ))) {
-      setFormError("Complete each timeline event or remove the empty event.");
-      return;
-    }
-    if (!recipient || !form.senderName.trim() || !origin || !destination) {
+    if (!recipient || !form.senderName.trim() || !form.origin.trim() || !form.destination.trim()) {
       setFormError("Complete all required shipment fields.");
       return;
     }
@@ -274,11 +248,15 @@ export default function AdminDashboard({ user, onSignOut }: { user: User; onSign
     setSaving(true);
     setFormError("");
     try {
+      const [originPosition, destinationPosition] = await Promise.all([
+        geocodeShipmentLocation(form.origin.trim()),
+        geocodeShipmentLocation(form.destination.trim()),
+      ]);
       const created = await createShipment({
         recipient,
         recipientEmail: form.recipientEmail.trim(),
-        origin,
-        destination,
+        origin: { name: form.origin.trim(), position: originPosition },
+        destination: { name: form.destination.trim(), position: destinationPosition },
         mode: form.mode,
         estimatedDelivery: expectedDeliveryDate,
         senderName: form.senderName.trim(),
@@ -293,7 +271,6 @@ export default function AdminDashboard({ user, onSignOut }: { user: User; onSign
         senderAddress: form.senderAddress.trim(),
         recipientAddress: form.recipientAddress.trim(),
         packageDescription: form.packageDescription.trim(),
-        timelineEvents: nonEmptyEvents,
       });
       setShipments((current) => [created, ...current.filter((shipment) => shipment.dbId !== created.dbId)]);
       setShipmentForm(newShipmentForm());
@@ -303,7 +280,7 @@ export default function AdminDashboard({ user, onSignOut }: { user: User; onSign
       setCreatedTrackingId(created.id);
     } catch (error) {
       console.error("Could not create shipment", error);
-      setFormError("Couldn't save the shipment. Please try again.");
+      setFormError(error instanceof Error ? error.message : "Couldn't save the shipment. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -432,7 +409,7 @@ export default function AdminDashboard({ user, onSignOut }: { user: User; onSign
 
           {activePage === "Settings" && <section className="panel-card admin-settings-page"><div><span className="account-eyebrow">WORKSPACE ACCESS</span><h2>Account settings</h2><p>Administrator sign-in and security are managed by Supabase Auth.</p></div><dl><div><dt>Signed in as</dt><dd>{user.email}</dd></div><div><dt>Workspace</dt><dd>Prestige Freight Cargo</dd></div></dl><button className="button-secondary" onClick={() => void onSignOut()}>Sign out</button></section>}
 
-          <footer className="admin-footer"><span>© 2026 Prestige Freight Cargo</span><span>Need help? <a href="mailto:info@prestigefreightcargo.com">Contact support</a></span></footer>
+          <footer className="admin-footer"><span>© 2024 Prestige Freight Cargo. All rights reserved.</span><span>Need help? <a href="mailto:info@prestigefreightcargo.com">Contact support</a></span></footer>
         </main>
       </section>
 
@@ -458,8 +435,8 @@ export default function AdminDashboard({ user, onSignOut }: { user: User; onSign
               <label>Receiver email<input type="email" value={shipmentForm.recipientEmail} onChange={(event) => setShipmentForm({ ...shipmentForm, recipientEmail: event.target.value })} placeholder="receiver@example.com" /></label>
               <label>Sender number<input type="tel" value={shipmentForm.senderPhone} onChange={(event) => setShipmentForm({ ...shipmentForm, senderPhone: event.target.value })} placeholder="e.g. +1 234 567 8900" /></label>
               <label>Receiver number<input type="tel" value={shipmentForm.recipientPhone} onChange={(event) => setShipmentForm({ ...shipmentForm, recipientPhone: event.target.value })} placeholder="e.g. +1 987 654 3210" /></label>
-              <label>Origin *<select required value={shipmentForm.origin} onChange={(event) => setShipmentForm({ ...shipmentForm, origin: event.target.value })}>{CITY_OPTIONS.map((city) => <option key={city.name}>{city.name}</option>)}</select></label>
-              <label>Destination *<select required value={shipmentForm.destination} onChange={(event) => setShipmentForm({ ...shipmentForm, destination: event.target.value })}>{CITY_OPTIONS.filter((city) => city.name !== shipmentForm.origin).map((city) => <option key={city.name}>{city.name}</option>)}</select></label>
+              <label>Origin *<input required value={shipmentForm.origin} onChange={(event) => setShipmentForm({ ...shipmentForm, origin: event.target.value })} placeholder="City, Country" /></label>
+              <label>Destination *<input required value={shipmentForm.destination} onChange={(event) => setShipmentForm({ ...shipmentForm, destination: event.target.value })} placeholder="City, Country" /></label>
               <label>Weight (kg) *<input type="number" min="0" step="0.1" required value={shipmentForm.weightKg} onChange={(event) => setShipmentForm({ ...shipmentForm, weightKg: event.target.value })} placeholder="0.0" /></label>
               <label>Status *<select required value={shipmentForm.status} onChange={(event) => setShipmentForm({ ...shipmentForm, status: event.target.value as ShipmentStatus })}><option>Pending</option><option>In transit</option><option>Delivered</option><option>Delayed</option><option>On hold</option></select></label>
               <label>Ship date *<input type="date" required value={shipmentForm.shipDate} onChange={(event) => setShipmentForm({ ...shipmentForm, shipDate: event.target.value })} /></label>
@@ -470,16 +447,6 @@ export default function AdminDashboard({ user, onSignOut }: { user: User; onSign
               <label>Receiver address<input value={shipmentForm.recipientAddress} onChange={(event) => setShipmentForm({ ...shipmentForm, recipientAddress: event.target.value })} placeholder="Full address" /></label>
               <label className="shipment-form-full">Package description<textarea rows={3} value={shipmentForm.packageDescription} onChange={(event) => setShipmentForm({ ...shipmentForm, packageDescription: event.target.value })} placeholder="Describe the package contents..." /></label>
             </div>
-            <section className="timeline-events-editor" aria-label="Timeline events">
-              <div className="timeline-events-heading"><h3>Timeline events</h3><button className="button-secondary" type="button" onClick={() => setShipmentForm({ ...shipmentForm, timelineEvents: [...shipmentForm.timelineEvents, { time: "", title: "", location: "" }] })}>+ Add event</button></div>
-              {shipmentForm.timelineEvents.map((timelineEvent, index) => <div className="timeline-event-row" key={index}>
-                <div className="shipment-form-row">
-                  <input aria-label={`Event ${index + 1} time`} value={timelineEvent.time} onChange={(event) => setShipmentForm({ ...shipmentForm, timelineEvents: shipmentForm.timelineEvents.map((item, itemIndex) => itemIndex === index ? { ...item, time: event.target.value } : item) })} placeholder="Time (e.g. Today, 10:45 AM)" />
-                  <input aria-label={`Event ${index + 1} title`} value={timelineEvent.title} onChange={(event) => setShipmentForm({ ...shipmentForm, timelineEvents: shipmentForm.timelineEvents.map((item, itemIndex) => itemIndex === index ? { ...item, title: event.target.value } : item) })} placeholder="Event title (e.g. Out for Delivery)" />
-                </div>
-                <div className="timeline-event-location"><input aria-label={`Event ${index + 1} location`} value={timelineEvent.location} onChange={(event) => setShipmentForm({ ...shipmentForm, timelineEvents: shipmentForm.timelineEvents.map((item, itemIndex) => itemIndex === index ? { ...item, location: event.target.value } : item) })} placeholder="Location details (e.g. London, UK)" />{shipmentForm.timelineEvents.length > 1 && <button className="timeline-event-remove" type="button" aria-label={`Remove event ${index + 1}`} onClick={() => setShipmentForm({ ...shipmentForm, timelineEvents: shipmentForm.timelineEvents.filter((_, itemIndex) => itemIndex !== index) })}><Icon name="close" size={15} /></button>}</div>
-              </div>)}
-            </section>
             {formError && <p className="admin-auth-error" role="alert">{formError}</p>}
             <div className="modal-form-actions"><button className="button-secondary" type="button" onClick={() => setModalOpen(false)}>Cancel</button><button className="button-primary" type="submit" disabled={saving}><Icon name="plus" size={17} /> {saving ? "Saving…" : "Save & Create Shipment"}</button></div>
           </form>}

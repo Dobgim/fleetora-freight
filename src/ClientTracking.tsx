@@ -124,7 +124,7 @@ export default function ClientTracking() {
           <section className="tracking-not-found"><span>{loading ? "…" : "?"}</span><h2>{loading ? "Looking up your shipment" : loadError ? "Tracking is unavailable" : trackingCode ? "We couldn't find that shipment" : "Enter a tracking number"}</h2><p>{loading ? "One moment while we fetch the latest status." : loadError || (trackingCode ? "Check the number and try again. Tracking numbers look like PFC-7KQ4-M29X." : "Your tracking number is in your booking confirmation.")}</p></section>
         )}
       </main>
-      <footer className="tracking-footer"><span>© 2026 Prestige Freight Cargo</span><a href="mailto:info@prestigefreightcargo.com">Need help? Contact our team</a></footer>
+      <footer className="tracking-footer"><span>© 2024 Prestige Freight Cargo. All rights reserved.</span><a href="mailto:info@prestigefreightcargo.com">Need help? Contact our team</a></footer>
     </div>
   );
 }

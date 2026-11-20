@@ -151,7 +151,6 @@ export async function createShipment(input: {
   senderAddress: string;
   recipientAddress: string;
   packageDescription: string;
-  timelineEvents: { time: string; title: string; location: string }[];
 }): Promise<Shipment> {
   const { data, error } = await requireClient()
     .from("shipments")
@@ -180,7 +179,6 @@ export async function createShipment(input: {
       sender_address: input.senderAddress,
       recipient_address: input.recipientAddress,
       package_description: input.packageDescription,
-      timeline_events: input.timelineEvents,
     })
     .select("*")
     .single();

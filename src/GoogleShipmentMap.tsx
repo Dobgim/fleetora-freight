@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { shipmentProgress, type Shipment } from "./shipments";
+import { CITY_OPTIONS, shipmentProgress, type Coordinate, type Shipment } from "./shipments";
 
 declare global {
   interface Window {
@@ -45,6 +45,26 @@ function loadGoogleMaps(): Promise<void> {
     document.head.appendChild(script);
   });
   return mapsReady;
+}
+
+export async function geocodeShipmentLocation(query: string): Promise<Coordinate> {
+  const knownCity = CITY_OPTIONS.find((city) => city.name.toLowerCase() === query.toLowerCase());
+  if (knownCity) return knownCity.position;
+
+  await loadGoogleMaps();
+  const maps = window.google?.maps;
+  if (!maps || typeof maps.importLibrary !== "function") {
+    throw new Error("Google Maps could not be initialized to look up this location.");
+  }
+  const { Geocoder } = await maps.importLibrary("geocoding") as google.maps.GeocodingLibrary;
+  try {
+    const response = await new Geocoder().geocode({ address: query });
+    const location = response.results[0]?.geometry.location;
+    if (!location) throw new Error("No matching location was found.");
+    return { lat: location.lat(), lng: location.lng() };
+  } catch {
+    throw new Error(`Could not locate "${query}". Check the city and country and try again.`);
+  }
 }
 
 function positionAlongRoute(path: google.maps.LatLng[], progress: number): google.maps.LatLng {

@@ -170,7 +170,7 @@ function AccountLayout({ children }: { children: ReactNode }) {
         <nav><a href="/track">Track a shipment</a><a href="/admin">Admin</a></nav>
       </header>
       <main className="account-main">{children}</main>
-      <footer className="account-footer"><span>© 2026 Prestige Freight Cargo</span><a href="mailto:info@prestigefreightcargo.com">Contact support</a></footer>
+      <footer className="account-footer"><span>© 2024 Prestige Freight Cargo. All rights reserved.</span><a href="mailto:info@prestigefreightcargo.com">Contact support</a></footer>
     </div>
   );
 }

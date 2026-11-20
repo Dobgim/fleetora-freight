@@ -20,14 +20,14 @@ Customer credentials are managed by Supabase Auth. Shipment records are linked t
 | --- | --- |
 | `VITE_SUPABASE_URL` | Supabase project URL |
 | `VITE_SUPABASE_PUBLISHABLE_KEY` | Supabase publishable key |
-| `VITE_GOOGLE_MAPS_API_KEY` | Browser Maps JavaScript API key; restrict by allowed website referrers and APIs |
+| `VITE_GOOGLE_MAPS_API_KEY` | Browser Maps JavaScript and Geocoding API key; restrict by allowed website referrers and APIs |
 | `VITE_GOOGLE_MAPS_MAP_ID` | Google Maps map ID |
 
 These `VITE_` values are included in browser code at build time; a `.env.local` file does not make them secret. Supabase publishable keys and browser Maps keys are expected to be public and must be restricted with Supabase RLS and Google Cloud API/referrer restrictions. Never add a Supabase service-role/secret key, database password, or personal access token to a `VITE_` variable, the client app, or Git.
 
 ## Supabase setup
 
-Apply migrations in `supabase/migrations/` to the intended project. The migrations add verified-email shipment linking, keep stored journey progress monotonic when status changes, and add the shipment contact, package, ship-date, and timeline fields used by the admin creation form. Map movement is an estimate based on route, service speed and shipment status; actual carrier GPS requires a trusted location feed.
+Apply migrations in `supabase/migrations/` to the intended project. The migrations add verified-email shipment linking, keep stored journey progress monotonic when status changes, and add shipment contact, package, and ship-date fields used by the admin creation form. The admin geocodes entered origin and destination locations for map display, so enable the Google Geocoding API for the Maps key. Map movement is an estimate based on route, service speed and shipment status; actual carrier GPS requires a trusted location feed.
 
 To create the administrator:
 

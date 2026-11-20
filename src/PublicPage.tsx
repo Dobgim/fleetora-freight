@@ -102,7 +102,7 @@ export default function PublicPage({ path }: { path: string }) {
           {page.cards.map((card) => <article id={card.id} key={card.title}><h2>{card.title}</h2><p>{card.body}</p></article>)}
         </section>
       </main>
-      <footer className="public-page-footer"><span>© 2026 Prestige Freight Cargo</span><a href="mailto:info@prestigefreightcargo.com">info@prestigefreightcargo.com</a></footer>
+      <footer className="public-page-footer"><span>© 2024 Prestige Freight Cargo. All rights reserved.</span><a href="mailto:info@prestigefreightcargo.com">info@prestigefreightcargo.com</a></footer>
     </div>
   );
 }
