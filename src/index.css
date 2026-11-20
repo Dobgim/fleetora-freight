@@ -1141,6 +1141,22 @@ body {
   font-size: 17px;
 }
 
+button.row-more {
+  padding: 6px 8px;
+  border: 1px solid #e7e7ef;
+  border-radius: 5px;
+  color: #5d56b8;
+  background: #fff;
+  font-size: 9px;
+  font-weight: 600;
+}
+
+button.row-more:hover,
+button.row-more:focus-visible {
+  border-color: #bdb8ef;
+  background: #f7f6ff;
+}
+
 .empty-row {
   height: 70px !important;
   color: #92939f !important;
@@ -1556,9 +1572,9 @@ body {
 .row-status-menu {
   position: absolute;
   z-index: 15;
-  top: 28px;
+  top: 34px;
   right: 0;
-  width: 155px;
+  width: 175px;
   padding: 5px;
   border: 1px solid #e9eaf0;
   border-radius: 8px;
@@ -1983,6 +1999,55 @@ body {
   padding: 17px 19px 6px;
 }
 
+.tracking-invoice-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-top: 15px;
+  padding: 17px 19px;
+  border: 1px solid #e9eaf0;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: 0 3px 12px rgba(35,38,57,.025);
+}
+
+.tracking-invoice-card.unavailable {
+  border-style: dashed;
+}
+
+.tracking-invoice-card.unavailable > div > p {
+  max-width: 580px;
+  line-height: 1.5;
+}
+
+.tracking-invoice-card h2 {
+  margin: 6px 0 0;
+  color: #353541;
+  font-size: 13px;
+}
+
+.tracking-invoice-card p {
+  margin: 5px 0 0;
+  color: #858796;
+  font-size: 9px;
+}
+
+.tracking-invoice-action {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.tracking-invoice-action > strong {
+  color: #343441;
+  font-size: 13px;
+}
+
+.tracking-invoice-action > p {
+  color: #b5473c;
+}
+
 .timeline-title {
   display: flex;
   align-items: center;
@@ -2393,9 +2458,16 @@ body {
 
   .client-shipment-summary,
   .client-map-heading,
-  .tracking-timeline {
+  .tracking-timeline,
+  .tracking-invoice-card {
     padding-right: 13px;
     padding-left: 13px;
+  }
+
+  .tracking-invoice-card,
+  .tracking-invoice-action {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .client-route-grid {

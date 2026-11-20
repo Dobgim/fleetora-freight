@@ -20,6 +20,8 @@ export default function ClientTracking() {
   const [now, setNow] = useState(Date.now());
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState("");
+  const [invoiceDownloading, setInvoiceDownloading] = useState(false);
+  const [invoiceError, setInvoiceError] = useState("");
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 1000);
@@ -70,6 +72,21 @@ export default function ClientTracking() {
     window.history.replaceState(null, "", url);
   }
 
+  async function downloadInvoice() {
+    if (!shipment?.invoice) return;
+    setInvoiceDownloading(true);
+    setInvoiceError("");
+    try {
+      const { downloadShipmentInvoice } = await import("./invoicePdf");
+      await downloadShipmentInvoice(shipment, shipment.invoice);
+    } catch (error) {
+      console.error("Could not download shipment invoice", error);
+      setInvoiceError("Couldn't prepare the invoice PDF. Please try again.");
+    } finally {
+      setInvoiceDownloading(false);
+    }
+  }
+
   return (
     <div className="client-tracking">
       <header className="tracking-header">
@@ -103,6 +120,21 @@ export default function ClientTracking() {
                 <div><small>ESTIMATED DELIVERY</small><b>{shipment.date}</b></div>
               </div>
               <div className="client-progress"><div><span>Journey progress</span><b>{Math.round(progress * 100)}%</b></div><i><span style={{ width: `${Math.min(100, Math.max(0, progress * 100))}%` }} /></i></div>
+            </section>
+
+            <section className={`tracking-invoice-card ${shipment.invoice ? "" : "unavailable"}`}>
+              <div><span className="tracking-eyebrow">SHIPMENT INVOICE</span><h2>{shipment.invoice?.invoiceNumber ?? "Invoice not available yet"}</h2>
+                <p>{shipment.invoice
+                  ? `Issued ${shipment.invoice.issuedOn} · Due ${shipment.invoice.dueOn}`
+                  : "The sender has not issued an invoice for this shipment yet. Please contact the sender or our team."}</p>
+              </div>
+              {shipment.invoice && <div className="tracking-invoice-action">
+                <strong>{shipment.invoice.subtotal === null || !shipment.invoice.currency
+                  ? "Amount not provided"
+                  : new Intl.NumberFormat("en-US", { style: "currency", currency: shipment.invoice.currency }).format(shipment.invoice.subtotal * (1 + shipment.invoice.taxRate / 100))}</strong>
+                <button className="button-primary" type="button" onClick={() => void downloadInvoice()} disabled={invoiceDownloading}>{invoiceDownloading ? "Preparing PDF…" : "Download invoice"}</button>
+                {invoiceError && <p role="alert">{invoiceError}</p>}
+              </div>}
             </section>
 
             <section className="client-map-card">

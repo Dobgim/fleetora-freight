@@ -1,15 +1,8 @@
 import { jsPDF } from "jspdf";
 import QRCode from "qrcode";
-import type { Shipment } from "./shipments";
+import type { Shipment, ShipmentInvoice } from "./shipments";
 
-export type ShipmentInvoiceDetails = {
-  invoiceNumber: string;
-  currency: string;
-  issuedOn: string;
-  dueOn: string;
-  subtotal: number;
-  taxRate: number;
-};
+export type ShipmentInvoiceDetails = ShipmentInvoice;
 
 function invoiceDate(date: string): string {
   if (!date) return "—";
@@ -62,8 +55,7 @@ export async function downloadShipmentInvoice(shipment: Shipment, details: Shipm
   const pageWidth = 210;
   const margin = 18;
   const rightEdge = pageWidth - margin;
-  const taxAmount = details.subtotal * details.taxRate / 100;
-  const total = details.subtotal + taxAmount;
+  const subtotal = details.subtotal;
   const description = shipment.packageDescription
     ? `${shipment.mode} - ${shipment.pieceType || "Freight"}\n${shipment.packageDescription.slice(0, 180)}`
     : `${shipment.mode} - ${shipment.pieceType || "Freight"}`;
@@ -117,66 +109,88 @@ export async function downloadShipmentInvoice(shipment: Shipment, details: Shipm
   doc.setFontSize(8);
   doc.setTextColor(98, 108, 121);
   doc.text("BILL TO", margin, 86);
-  doc.text("SHIPMENT DETAILS", 112, 86);
+  doc.text("SHIP FROM", 112, 86);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);
   doc.setTextColor(25, 34, 48);
-  doc.text(shipment.recipient, margin, 94);
+  addParagraph(doc, shipment.recipient, margin, 94, 82, 4, 1);
+  addParagraph(doc, shipment.senderName || "—", 112, 94, 78, 4, 1);
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
-  doc.setTextColor(76, 84, 96);
-  let billToY = 100;
-  if (shipment.recipientEmail) billToY += addParagraph(doc, shipment.recipientEmail, margin, billToY, 82);
-  if (shipment.recipientAddress) billToY += addParagraph(doc, shipment.recipientAddress, margin, billToY, 82);
   doc.setFontSize(8.5);
-  doc.text(`Service: ${shipment.mode}`, 112, 94);
-  addParagraph(doc, `Route: ${shipment.originName} to ${shipment.destinationName}`, 112, 100, 78, 4, 2);
-  doc.text(`Ship date: ${invoiceDate(shipment.shipDate)}`, 112, 106);
-  doc.text(`Estimated delivery: ${shipment.date}`, 112, 112);
-  if (shipment.weightKg > 0) doc.text(`Weight: ${shipment.weightKg} kg`, 112, 118);
-  if (shipment.senderName) doc.text(`Shipper: ${shipment.senderName}`, 112, 124);
+  doc.setTextColor(76, 84, 96);
+  if (shipment.recipientEmail) addParagraph(doc, shipment.recipientEmail, margin, 101, 82, 4, 1);
+  if (shipment.recipientPhone) addParagraph(doc, shipment.recipientPhone, margin, 106, 82, 4, 1);
+  if (shipment.recipientAddress) addParagraph(doc, shipment.recipientAddress, margin, 111, 82, 4, 3);
+  if (shipment.senderEmail) addParagraph(doc, shipment.senderEmail, 112, 101, 78, 4, 1);
+  if (shipment.senderPhone) addParagraph(doc, shipment.senderPhone, 112, 106, 78, 4, 1);
+  if (shipment.senderAddress) addParagraph(doc, shipment.senderAddress, 112, 111, 78, 4, 3);
 
   doc.setDrawColor(224, 228, 234);
-  doc.line(margin, 128, rightEdge, 128);
+  doc.line(margin, 127, rightEdge, 127);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(8);
+  doc.setTextColor(98, 108, 121);
+  doc.text("SHIPMENT DETAILS", margin, 136);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8.5);
+  doc.setTextColor(76, 84, 96);
+  addParagraph(doc, `Route: ${shipment.originName} to ${shipment.destinationName}`, margin, 142, 174, 4, 1);
+  doc.text(`Service: ${shipment.mode}   Ship date: ${invoiceDate(shipment.shipDate)}   Estimated delivery: ${shipment.date}`, margin, 148);
+
+  doc.setDrawColor(224, 228, 234);
+  doc.line(margin, 153, rightEdge, 153);
   doc.setFillColor(245, 247, 250);
-  doc.roundedRect(margin, 137, pageWidth - margin * 2, 11, 2, 2, "F");
+  doc.roundedRect(margin, 158, pageWidth - margin * 2, 11, 2, 2, "F");
   doc.setFont("helvetica", "bold");
   doc.setFontSize(8);
   doc.setTextColor(66, 75, 88);
-  doc.text("DESCRIPTION", margin + 4, 144);
-  doc.text("AMOUNT", rightEdge - 4, 144, { align: "right" });
+  doc.text("DESCRIPTION", margin + 4, 165);
+  doc.text("AMOUNT", rightEdge - 4, 165, { align: "right" });
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
   doc.setTextColor(40, 48, 61);
-  addParagraph(doc, description, margin + 4, 157, 125);
-  doc.text(formatMoney(details.subtotal, details.currency), rightEdge - 4, 157, { align: "right" });
+  addParagraph(doc, description, margin + 4, 177, 125);
+  doc.text(subtotal === null || !details.currency
+    ? "Amount not provided"
+    : formatMoney(subtotal, details.currency), rightEdge - 4, 177, { align: "right" });
   doc.setDrawColor(224, 228, 234);
-  doc.line(margin, 170, rightEdge, 170);
+  doc.line(margin, 189, rightEdge, 189);
 
   const totalX = 134;
-  doc.setFontSize(9);
-  doc.setTextColor(76, 84, 96);
-  doc.text("Subtotal", totalX, 181);
-  doc.text(formatMoney(details.subtotal, details.currency), rightEdge, 181, { align: "right" });
-  doc.text(`Tax (${details.taxRate.toFixed(2)}%)`, totalX, 189);
-  doc.text(formatMoney(taxAmount, details.currency), rightEdge, 189, { align: "right" });
-  doc.setDrawColor(224, 228, 234);
-  doc.line(totalX, 194, rightEdge, 194);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(13);
-  doc.setTextColor(16, 32, 51);
-  doc.text("Total due", totalX, 203);
-  doc.text(formatMoney(total, details.currency), rightEdge, 203, { align: "right" });
+  if (subtotal === null || !details.currency) {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(76, 84, 96);
+    doc.text("Amount not provided", totalX, 202);
+  } else {
+    const taxAmount = subtotal * details.taxRate / 100;
+    const total = subtotal + taxAmount;
+    doc.setFontSize(9);
+    doc.setTextColor(76, 84, 96);
+    doc.text("Subtotal", totalX, 198);
+    doc.text(formatMoney(subtotal, details.currency), rightEdge, 198, { align: "right" });
+    if (details.taxRate > 0) {
+      doc.text(`Tax (${details.taxRate.toFixed(2)}%)`, totalX, 206);
+      doc.text(formatMoney(taxAmount!, details.currency), rightEdge, 206, { align: "right" });
+    }
+    doc.setDrawColor(224, 228, 234);
+    doc.line(totalX, details.taxRate > 0 ? 211 : 204, rightEdge, details.taxRate > 0 ? 211 : 204);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(13);
+    doc.setTextColor(16, 32, 51);
+    doc.text("Total due", totalX, details.taxRate > 0 ? 220 : 213);
+    doc.text(formatMoney(total, details.currency), rightEdge, details.taxRate > 0 ? 220 : 213, { align: "right" });
+  }
 
-  doc.addImage(qrCode, "PNG", margin, 211, 37, 37);
+  doc.addImage(qrCode, "PNG", margin, 225, 34, 34);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10);
   doc.setTextColor(25, 34, 48);
-  doc.text("Scan to track this shipment", 62, 220);
+  doc.text("Scan to track this shipment", 58, 234);
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8.5);
   doc.setTextColor(98, 108, 121);
-  addParagraph(doc, "Use your phone camera to open the secure shipment tracking page.", 62, 227, 100, 4);
+  addParagraph(doc, "Use your phone camera to open the secure shipment tracking page.", 58, 241, 100, 4);
 
   doc.setDrawColor(224, 228, 234);
   doc.line(margin, 269, rightEdge, 269);

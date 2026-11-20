@@ -9,6 +9,15 @@ export type Coordinate = {
   lng: number;
 };
 
+export type ShipmentInvoice = {
+  invoiceNumber: string;
+  currency: string | null;
+  issuedOn: string;
+  dueOn: string;
+  subtotal: number | null;
+  taxRate: number;
+};
+
 export type Shipment = {
   /** Database row id (uuid). Empty for the public tracking view. */
   dbId: string;
@@ -37,6 +46,7 @@ export type Shipment = {
   status: ShipmentStatus;
   progress: number;
   startedAt: number | null;
+  invoice: ShipmentInvoice | null;
 };
 
 export const CITY_OPTIONS: { name: string; position: Coordinate }[] = [
@@ -87,8 +97,40 @@ function formatDate(isoDate: string): string {
   return new Date(year, month - 1, day).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 
+function dateValue(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function createInvoiceDetails(): ShipmentInvoice {
+  const issuedDate = new Date();
+  const dueDate = new Date(issuedDate);
+  dueDate.setDate(dueDate.getDate() + 30);
+  const timestamp = Date.now().toString(36).slice(-5).toUpperCase();
+  const random = Math.random().toString(36).slice(2, 6).toUpperCase();
+
+  return {
+    invoiceNumber: `INV-${issuedDate.getFullYear()}-${timestamp}${random}`,
+    currency: null,
+    issuedOn: dateValue(issuedDate),
+    dueOn: dateValue(dueDate),
+    subtotal: null,
+    taxRate: 0,
+  };
+}
+
 function toShipment(row: TrackedRow | ShipmentRow, dbId = ""): Shipment {
-  const details = "sender_name" in row ? row : null;
+  const details = "ship_date" in row ? row : null;
+  const invoice = row.invoice_number ? {
+    invoiceNumber: row.invoice_number,
+    currency: row.invoice_currency,
+    issuedOn: row.invoice_issued_on!,
+    dueOn: row.invoice_due_on!,
+    subtotal: row.invoice_subtotal === null ? null : Number(row.invoice_subtotal),
+    taxRate: Number(row.invoice_tax_rate),
+  } : null;
   return {
     dbId,
     id: row.tracking_number,
@@ -99,13 +141,13 @@ function toShipment(row: TrackedRow | ShipmentRow, dbId = ""): Shipment {
     destinationName: row.destination_name,
     origin: { lat: row.origin_lat, lng: row.origin_lng },
     destination: { lat: row.destination_lat, lng: row.destination_lng },
-    senderName: details?.sender_name ?? "",
-    senderEmail: details?.sender_email ?? "",
-    senderPhone: details?.sender_phone ?? "",
-    recipientEmail: details?.recipient_email ?? "",
-    recipientPhone: details?.recipient_phone ?? "",
-    senderAddress: details?.sender_address ?? "",
-    recipientAddress: details?.recipient_address ?? "",
+    senderName: row.sender_name ?? "",
+    senderEmail: row.sender_email ?? "",
+    senderPhone: row.sender_phone ?? "",
+    recipientEmail: row.recipient_email ?? "",
+    recipientPhone: row.recipient_phone ?? "",
+    senderAddress: row.sender_address ?? "",
+    recipientAddress: row.recipient_address ?? "",
     shipDate: details?.ship_date ?? "",
     weightKg: details?.weight_kg ?? 0,
     pieceType: details?.piece_type ?? "",
@@ -115,6 +157,7 @@ function toShipment(row: TrackedRow | ShipmentRow, dbId = ""): Shipment {
     status: row.status as ShipmentStatus,
     progress: Number(row.progress),
     startedAt: row.started_at ? Date.parse(row.started_at) : null,
+    invoice,
   };
 }
 
@@ -175,6 +218,7 @@ export async function createShipment(input: {
   recipientAddress: string;
   packageDescription: string;
 }): Promise<Shipment> {
+  const invoice = createInvoiceDetails();
   const { data, error } = await requireClient()
     .from("shipments")
     .insert({
@@ -202,6 +246,12 @@ export async function createShipment(input: {
       sender_address: input.senderAddress,
       recipient_address: input.recipientAddress,
       package_description: input.packageDescription,
+      invoice_number: invoice.invoiceNumber,
+      invoice_currency: invoice.currency,
+      invoice_issued_on: invoice.issuedOn,
+      invoice_due_on: invoice.dueOn,
+      invoice_subtotal: invoice.subtotal,
+      invoice_tax_rate: invoice.taxRate,
     })
     .select("*")
     .single();

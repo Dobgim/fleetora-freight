@@ -94,6 +94,12 @@ export type Database = {
           estimated_delivery: string
           expected_delivery_time: string | null
           id: string
+          invoice_currency: string | null
+          invoice_due_on: string | null
+          invoice_issued_on: string | null
+          invoice_number: string | null
+          invoice_subtotal: number | null
+          invoice_tax_rate: number | null
           mode: string
           origin_lat: number
           origin_lng: number
@@ -127,6 +133,12 @@ export type Database = {
           estimated_delivery: string
           expected_delivery_time?: string | null
           id?: string
+          invoice_currency?: string | null
+          invoice_due_on?: string | null
+          invoice_issued_on?: string | null
+          invoice_number?: string | null
+          invoice_subtotal?: number | null
+          invoice_tax_rate?: number | null
           mode: string
           origin_lat: number
           origin_lng: number
@@ -160,6 +172,12 @@ export type Database = {
           estimated_delivery?: string
           expected_delivery_time?: string | null
           id?: string
+          invoice_currency?: string | null
+          invoice_due_on?: string | null
+          invoice_issued_on?: string | null
+          invoice_number?: string | null
+          invoice_subtotal?: number | null
+          invoice_tax_rate?: number | null
           mode?: string
           origin_lat?: number
           origin_lng?: number
@@ -222,12 +240,25 @@ export type Database = {
           destination_lng: number
           destination_name: string
           estimated_delivery: string
+          invoice_currency: string | null
+          invoice_due_on: string | null
+          invoice_issued_on: string | null
+          invoice_number: string | null
+          invoice_subtotal: number | null
+          invoice_tax_rate: number | null
           mode: string
           origin_lat: number
           origin_lng: number
           origin_name: string
           progress: number
           recipient_name: string
+          recipient_address: string | null
+          recipient_email: string | null
+          recipient_phone: string | null
+          sender_address: string | null
+          sender_email: string | null
+          sender_name: string | null
+          sender_phone: string | null
           started_at: string
           status: string
           tracking_number: string

@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import type { User } from "@supabase/supabase-js";
-import AdminInvoices from "./AdminInvoices";
 import GoogleShipmentMap, { geocodeShipmentLocation } from "./GoogleShipmentMap";
 import { supabase } from "./supabase";
 import {
@@ -18,7 +17,6 @@ const navigation = [
   { label: "Shipments", icon: "box" },
   { label: "Tracking", icon: "pin" },
   { label: "Customers", icon: "users" },
-  { label: "Invoices", icon: "receipt" },
   { label: "Analytics", icon: "chart" },
 ];
 
@@ -27,7 +25,6 @@ const titles: Record<string, string> = {
   Shipments: "Shipments",
   Tracking: "Live tracking",
   Customers: "Customers",
-  Invoices: "Invoices",
   Analytics: "Analytics",
   Settings: "Settings",
 };
@@ -37,7 +34,6 @@ const pageSlugs: Record<string, string> = {
   Shipments: "/shipments",
   Tracking: "/tracking",
   Customers: "/customers",
-  Invoices: "/invoices",
   Analytics: "/analytics",
   Settings: "/settings",
 };
@@ -399,14 +395,12 @@ export default function AdminDashboard({ user, onSignOut }: { user: User; onSign
               <button className="table-search-mobile" onClick={() => document.querySelector<HTMLInputElement>(".admin-search input")?.focus()} aria-label="Search shipments"><Icon name="search" size={17} /></button>
             </div>
             <div className="table-scroll"><table className="shipment-table"><thead><tr><th>TRACKING ID</th><th>CUSTOMER</th><th>ROUTE</th><th>SERVICE</th><th>ETA</th><th>STATUS</th><th aria-label="Actions" /></tr></thead>
-              <tbody>{filteredShipments.length ? filteredShipments.map((shipment) => <tr key={shipment.id}><td><a className="tracking-id" href={`/track?code=${encodeURIComponent(shipment.id)}`} target="_blank" rel="noreferrer">{shipment.id}</a></td><td><span className="customer-cell"><i>{shipment.initials}</i><b>{shipment.recipient}</b></span></td><td className="route-cell">{shipment.route}</td><td><span className="service-cell"><i className={`service-mark ${shipment.mode.startsWith("Air") ? "air-mark" : shipment.mode.startsWith("Road") ? "road-mark" : ""}`} />{shipment.mode}</span></td><td className="eta-cell">{shipment.date}</td><td><span className={`shipment-status ${shipment.status.toLowerCase().replace(" ", "-")}`}><i />{shipment.status}</span></td><td><div className="row-action-wrap"><button className="row-more" aria-label={`Change status for ${shipment.id}`} aria-expanded={statusMenuId === shipment.id} onClick={() => setStatusMenuId(statusMenuId === shipment.id ? null : shipment.id)}>···</button>{statusMenuId === shipment.id && <div className="row-status-menu" role="menu" aria-label={`Change status for ${shipment.id}`}>{(["In transit", "On hold", "Delayed", "Delivered", "Pending"] as ShipmentStatus[]).map((status) => <button key={status} role="menuitem" className={status === shipment.status ? "current" : ""} onClick={() => void changeShipmentStatus(shipment, status)}><i className={`status-menu-dot ${status.toLowerCase().replace(" ", "-")}`} />{status}{status === shipment.status && <span>Current</span>}</button>)}</div>}</div></td></tr>) : <tr><td className="empty-row" colSpan={7}>No shipments match your search.</td></tr>}</tbody>
+              <tbody>{filteredShipments.length ? filteredShipments.map((shipment) => <tr key={shipment.id}><td><a className="tracking-id" href={`/track?code=${encodeURIComponent(shipment.id)}`} target="_blank" rel="noreferrer">{shipment.id}</a></td><td><span className="customer-cell"><i>{shipment.initials}</i><b>{shipment.recipient}</b></span></td><td className="route-cell">{shipment.route}</td><td><span className="service-cell"><i className={`service-mark ${shipment.mode.startsWith("Air") ? "air-mark" : shipment.mode.startsWith("Road") ? "road-mark" : ""}`} />{shipment.mode}</span></td><td className="eta-cell">{shipment.date}</td><td><span className={`shipment-status ${shipment.status.toLowerCase().replace(" ", "-")}`}><i />{shipment.status}</span></td><td><div className="row-action-wrap"><button className="row-more" aria-label={`Change status for ${shipment.id}`} aria-expanded={statusMenuId === shipment.id} onClick={() => setStatusMenuId(statusMenuId === shipment.id ? null : shipment.id)}>Change</button>{statusMenuId === shipment.id && <div className="row-status-menu" role="menu" aria-label={`Change status for ${shipment.id}`}>{(["In transit", "On hold", "Delayed", "Delivered", "Pending"] as ShipmentStatus[]).map((status) => <button key={status} role="menuitem" className={status === shipment.status ? "current" : ""} onClick={() => void changeShipmentStatus(shipment, status)}><i className={`status-menu-dot ${status.toLowerCase().replace(" ", "-")}`} />{status}{status === shipment.status && <span>Current</span>}</button>)}</div>}</div></td></tr>) : <tr><td className="empty-row" colSpan={7}>No shipments match your search.</td></tr>}</tbody>
             </table></div>
             <div className="table-footer"><span>Showing <b>{filteredShipments.length ? 1 : 0}–{filteredShipments.length}</b> of <b>{shipments.length}</b> shipments</span><div><button disabled aria-label="Previous page">‹</button><button className="current-page">1</button><button disabled aria-label="Next page">›</button></div></div>
           </section>}
 
           {activePage === "Customers" && <section className="panel-card admin-data-page"><div className="panel-heading"><div><h2>Customers</h2><p>Recipients from existing shipment records</p></div><span className="table-count">{customers.length}</span></div>{customers.length ? <div className="table-scroll"><table className="shipment-table"><thead><tr><th>CUSTOMER</th><th>SHIPMENTS</th><th>LATEST TRACKING ID</th><th>STATUS</th></tr></thead><tbody>{customers.map((customer) => <tr key={customer.name.toLowerCase()}><td>{customer.name}</td><td>{customer.count}</td><td><a className="tracking-id" href={`/track?code=${encodeURIComponent(customer.latest.id)}`} target="_blank" rel="noreferrer">{customer.latest.id}</a></td><td>{customer.latest.status}</td></tr>)}</tbody></table></div> : <p className="admin-empty-state">Customers will appear here after shipments are created.</p>}</section>}
-
-          {activePage === "Invoices" && <AdminInvoices shipments={shipments} />}
 
           {activePage === "Settings" && <section className="panel-card admin-settings-page"><div><span className="account-eyebrow">WORKSPACE ACCESS</span><h2>Account settings</h2><p>Administrator sign-in and security are managed by Supabase Auth.</p></div><dl><div><dt>Signed in as</dt><dd>{user.email}</dd></div><div><dt>Workspace</dt><dd>Prestige Freight Cargo</dd></div></dl><button className="button-secondary" onClick={() => void onSignOut()}>Sign out</button></section>}
 
@@ -424,7 +418,7 @@ export default function AdminDashboard({ user, onSignOut }: { user: User; onSign
             <span>Shipment saved successfully</span>
             <p>Your tracking ID is</p>
             <strong>{createdTrackingId}</strong>
-            <p>Use this ID to track the shipment.</p>
+            <p>Open this tracking ID to see the shipment and its invoice.</p>
             <div className="shipment-created-actions"><button className="button-primary" type="button" onClick={() => setModalOpen(false)}>Done</button></div>
           </div> : <form onSubmit={addShipment}>
             <div className="shipment-form-grid">

@@ -27,7 +27,7 @@ These `VITE_` values are included in browser code at build time; a `.env.local` 
 
 ## Supabase setup
 
-Apply migrations in `supabase/migrations/` to the intended project. The migrations add verified-email shipment linking, keep stored journey progress monotonic when status changes, and add shipment contact, package, and ship-date fields used by the admin creation form. The admin geocodes entered origin and destination locations for map display, so enable the Google Geocoding API for the Maps key. Map movement is an estimate based on route, service speed and shipment status; actual carrier GPS requires a trusted location feed.
+Apply migrations in `supabase/migrations/` to the intended project. The migrations add verified-email shipment linking, keep stored journey progress monotonic when status changes, add shipment contact and package details, and support automatically issued invoices on shipment creation for public tracking downloads. The admin geocodes entered origin and destination locations for map display, so enable the Google Geocoding API for the Maps key. Map movement is an estimate based on route, service speed and shipment status; actual carrier GPS requires a trusted location feed.
 
 To create the administrator:
 
@@ -35,7 +35,7 @@ To create the administrator:
 2. Run `supabase/promote-admin.sql` in that project's SQL Editor.
 3. Sign in at `/admin`.
 
-The admin **Invoices** page creates a downloadable PDF from an existing shipment. Enter the subtotal, currency, tax rate, and due date; the invoice QR code opens that shipment's public tracking page.
+The admin **Shipments** table has a **Change** action on each row to update its status. Creating a shipment automatically issues an invoice number with the issue date and a due date 30 days later; no price or tax is added. Recipients can download the invoice from the public tracking page. It includes sender and receiver contact details when those were supplied for the shipment, and its QR code opens that shipment's tracking page.
 
 To clear all existing shipment records, first confirm the project ref and take a backup, then run `supabase/clean-all-shipments.sql` manually in that project's SQL Editor. This permanently deletes every shipment and customer tracking record. It is intentionally not part of an automatic migration.
 
