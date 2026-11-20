@@ -1,23 +1,16 @@
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
-
-type Status = "In transit" | "Delivered" | "Pending" | "Delayed";
-type Shipment = {
-  id: string;
-  recipient: string;
-  initials: string;
-  route: string;
-  mode: string;
-  date: string;
-  status: Status;
-};
-
-const initialShipments: Shipment[] = [
-  { id: "FLE-7KQ4-M29X", recipient: "Northstar Furniture", initials: "NF", route: "Newark, US → Rotterdam, NL", mode: "Ocean freight", date: "Oct 23, 2026", status: "In transit" },
-  { id: "FLE-2XP8-B14C", recipient: "Marlow & Finch", initials: "MF", route: "Los Angeles, US → Chicago, US", mode: "Road freight", date: "Oct 22, 2026", status: "In transit" },
-  { id: "FLE-9LD3-Q61A", recipient: "Goodwell Market", initials: "GM", route: "London, UK → Toronto, CA", mode: "Air freight", date: "Oct 21, 2026", status: "Delivered" },
-  { id: "FLE-4HT6-W82N", recipient: "Aster Home", initials: "AH", route: "Houston, US → Miami, US", mode: "Road freight", date: "Oct 24, 2026", status: "Pending" },
-  { id: "FLE-5ZM1-R73P", recipient: "Paw & Co.", initials: "PC", route: "New York, US → Dublin, IE", mode: "Air freight", date: "Oct 25, 2026", status: "Delayed" },
-];
+import GoogleShipmentMap from "./GoogleShipmentMap";
+import {
+  CITY_OPTIONS,
+  readShipments,
+  saveShipments,
+  shipmentProgress,
+  SPEED_KMH,
+  STORAGE_KEY,
+  type Shipment,
+  type ShipmentMode,
+  type ShipmentStatus,
+} from "./shipments";
 
 const navigation = [
   { label: "Overview", icon: "grid" },
@@ -69,14 +62,18 @@ function DashboardIcon({ name }: { name: string }) {
 
 export default function AdminDashboard() {
   const [activePage, setActivePage] = useState("Overview");
-  const [shipments, setShipments] = useState(initialShipments);
+  const [shipments, setShipments] = useState<Shipment[]>(readShipments);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All shipments");
+  const [statusMenuId, setStatusMenuId] = useState<string | null>(null);
+  const [selectedShipmentId, setSelectedShipmentId] = useState<string>();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [newRecipient, setNewRecipient] = useState("");
-  const [newRoute, setNewRoute] = useState("");
+  const [newOrigin, setNewOrigin] = useState(CITY_OPTIONS[0].name);
+  const [newDestination, setNewDestination] = useState(CITY_OPTIONS[1].name);
+  const [newMode, setNewMode] = useState<ShipmentMode>("Ocean freight");
 
   useEffect(() => {
     if (!modalOpen) return;
@@ -87,6 +84,18 @@ export default function AdminDashboard() {
     return () => window.removeEventListener("keydown", closeOnEscape);
   }, [modalOpen]);
 
+  useEffect(() => {
+    saveShipments(shipments);
+  }, [shipments]);
+
+  useEffect(() => {
+    function syncShipments(event: StorageEvent) {
+      if (event.key === STORAGE_KEY) setShipments(readShipments());
+    }
+    window.addEventListener("storage", syncShipments);
+    return () => window.removeEventListener("storage", syncShipments);
+  }, []);
+
   const filteredShipments = useMemo(() => shipments.filter((shipment) => {
     const matchesSearch = `${shipment.id} ${shipment.recipient} ${shipment.route}`.toLowerCase().includes(search.toLowerCase());
     const matchesStatus = statusFilter === "All shipments" || shipment.status === statusFilter;
@@ -96,24 +105,49 @@ export default function AdminDashboard() {
   function addShipment(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const recipient = newRecipient.trim();
-    const route = newRoute.trim();
-    if (!recipient || !route) return;
+    const origin = CITY_OPTIONS.find((city) => city.name === newOrigin);
+    const destination = CITY_OPTIONS.find((city) => city.name === newDestination);
+    if (!recipient || !origin || !destination) return;
     const initials = recipient.split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
     setShipments((current) => [{
       id: `FLE-${Math.random().toString(36).slice(2, 6).toUpperCase()}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`,
       recipient,
       initials,
-      route,
-      mode: "Ocean freight",
-      date: "Oct 28, 2026",
+      route: `${origin.name} → ${destination.name}`,
+      originName: origin.name,
+      destinationName: destination.name,
+      origin: origin.position,
+      destination: destination.position,
+      mode: newMode,
+      date: "Nov 28, 2026",
       status: "Pending",
+      progress: 0,
+      startedAt: null,
     }, ...current]);
     setNewRecipient("");
-    setNewRoute("");
     setStatusFilter("All shipments");
     setSearch("");
     setActivePage("Shipments");
     setModalOpen(false);
+  }
+
+  function changeShipmentStatus(shipmentId: string, status: ShipmentStatus) {
+    const now = Date.now();
+    setShipments((current) => current.map((shipment) => {
+      if (shipment.id !== shipmentId || shipment.status === status) return shipment;
+      const progress = status === "Delivered"
+        ? 1
+        : status === "In transit" && shipment.status === "Delivered"
+          ? 0
+          : shipmentProgress(shipment, now);
+      return {
+        ...shipment,
+        status,
+        progress,
+        startedAt: status === "In transit" ? now : null,
+      };
+    }));
+    setStatusMenuId(null);
   }
 
   function exportShipments() {
@@ -124,21 +158,22 @@ export default function AdminDashboard() {
     const csv = rows.map((row) => row.map((field) => `"${field.replaceAll('"', '""')}"`).join(",")).join("\n");
     const link = document.createElement("a");
     link.href = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
-    link.download = "fleetora-shipments.csv";
+    link.download = "prestige-freight-cargo-shipments.csv";
     link.click();
     window.setTimeout(() => URL.revokeObjectURL(link.href), 1000);
   }
 
   const pageTitle = titles[activePage] ?? "Overview";
+  const selectedShipment = shipments.find((shipment) => shipment.id === selectedShipmentId);
 
   return (
     <div className="admin-shell">
       {mobileMenuOpen && <button className="admin-sidebar-scrim" aria-label="Close navigation" onClick={() => setMobileMenuOpen(false)} />}
       <aside className={`admin-sidebar${mobileMenuOpen ? " admin-sidebar-open" : ""}`}>
-        <a className="admin-brand" href="/" aria-label="Fleetora home">
-          <img src="/storage/brand/fleetora-logo-light.png" alt="Fleetora Freights" />
+        <a className="admin-brand" href="/" aria-label="Prestige Freight Cargo home">
+          <img src="/storage/brand/prestige-freight-cargo-light.svg" alt="Prestige Freight Cargo" />
         </a>
-        <div className="admin-workspace"><span className="workspace-mark">F</span><span><b>Fleetora Logistics</b><small>Workspace</small></span><Icon name="down" size={16} /></div>
+        <div className="admin-workspace"><span className="workspace-mark">P</span><span><b>Prestige Freight Cargo</b><small>Workspace</small></span><Icon name="down" size={16} /></div>
         <div className="admin-nav-label">WORKSPACE</div>
         <nav className="admin-nav" aria-label="Dashboard navigation">
           {navigation.map((item) => (
@@ -205,25 +240,34 @@ export default function AdminDashboard() {
             </article>
           </section>
 
+          <section className="panel-card map-panel">
+            <div className="panel-heading map-panel-heading">
+              <div><h2>Live shipment map</h2><p>{selectedShipment ? `${selectedShipment.id} · ${selectedShipment.mode} · ${SPEED_KMH[selectedShipment.mode]} km/h` : "Track every active shipment around the world"}</p></div>
+              {shipments[0] && <a className="text-link" href={`/track?code=${encodeURIComponent((selectedShipment ?? shipments[0]).id)}`} target="_blank" rel="noreferrer">Open client view <Icon name="arrow" size={16} /></a>}
+            </div>
+            <GoogleShipmentMap shipments={shipments} selectedId={selectedShipmentId} onSelect={setSelectedShipmentId} />
+            <div className="map-panel-foot"><span>Estimated movement simulation · Updates every second while in transit</span><span>Road 60 km/h · Sea 35 km/h · Air 800 km/h</span></div>
+          </section>
+
           <section className="panel-card shipments-card">
             <div className="panel-heading shipment-panel-heading"><div><h2>Recent shipments <span className="table-count">{filteredShipments.length}</span></h2><p>Keep an eye on your latest deliveries</p></div><button className="text-link" onClick={() => { setActivePage("Shipments"); setStatusFilter("All shipments"); }}>View all shipments <Icon name="arrow" size={16} /></button></div>
             <div className="table-toolbar">
               <div className="filter-tabs" role="group" aria-label="Filter by shipment status">
-                {["All shipments", "In transit", "Delivered", "Pending", "Delayed"].map((filter) => <button key={filter} className={statusFilter === filter ? "selected" : ""} onClick={() => setStatusFilter(filter)}>{filter}</button>)}
+                {["All shipments", "In transit", "On hold", "Delivered", "Pending", "Delayed"].map((filter) => <button key={filter} className={statusFilter === filter ? "selected" : ""} onClick={() => setStatusFilter(filter)}>{filter}</button>)}
               </div>
               <button className="table-search-mobile" onClick={() => document.querySelector<HTMLInputElement>(".admin-search input")?.focus()} aria-label="Search shipments"><Icon name="search" size={17} /></button>
             </div>
             <div className="table-scroll"><table className="shipment-table"><thead><tr><th>TRACKING ID</th><th>CUSTOMER</th><th>ROUTE</th><th>SERVICE</th><th>ETA</th><th>STATUS</th><th aria-label="Actions" /></tr></thead>
-              <tbody>{filteredShipments.length ? filteredShipments.map((shipment) => <tr key={shipment.id}><td><button className="tracking-id" onClick={() => { setActivePage("Tracking"); setSearch(shipment.id); }}>{shipment.id}</button></td><td><span className="customer-cell"><i>{shipment.initials}</i><b>{shipment.recipient}</b></span></td><td className="route-cell">{shipment.route}</td><td><span className="service-cell"><i className={`service-mark ${shipment.mode.startsWith("Air") ? "air-mark" : shipment.mode.startsWith("Road") ? "road-mark" : ""}`} />{shipment.mode}</span></td><td className="eta-cell">{shipment.date}</td><td><span className={`shipment-status ${shipment.status.toLowerCase().replace(" ", "-")}`}><i />{shipment.status}</span></td><td><button className="row-more" aria-label={`More options for ${shipment.id}`}>···</button></td></tr>) : <tr><td className="empty-row" colSpan={7}>No shipments match your search.</td></tr>}</tbody>
+              <tbody>{filteredShipments.length ? filteredShipments.map((shipment) => <tr key={shipment.id}><td><a className="tracking-id" href={`/track?code=${encodeURIComponent(shipment.id)}`} target="_blank" rel="noreferrer">{shipment.id}</a></td><td><span className="customer-cell"><i>{shipment.initials}</i><b>{shipment.recipient}</b></span></td><td className="route-cell">{shipment.route}</td><td><span className="service-cell"><i className={`service-mark ${shipment.mode.startsWith("Air") ? "air-mark" : shipment.mode.startsWith("Road") ? "road-mark" : ""}`} />{shipment.mode}</span></td><td className="eta-cell">{shipment.date}</td><td><span className={`shipment-status ${shipment.status.toLowerCase().replace(" ", "-")}`}><i />{shipment.status}</span></td><td><div className="row-action-wrap"><button className="row-more" aria-label={`Change status for ${shipment.id}`} aria-expanded={statusMenuId === shipment.id} onClick={() => setStatusMenuId(statusMenuId === shipment.id ? null : shipment.id)}>···</button>{statusMenuId === shipment.id && <div className="row-status-menu" role="menu" aria-label={`Change status for ${shipment.id}`}>{(["In transit", "On hold", "Delayed", "Delivered", "Pending"] as ShipmentStatus[]).map((status) => <button key={status} role="menuitem" className={status === shipment.status ? "current" : ""} onClick={() => changeShipmentStatus(shipment.id, status)}><i className={`status-menu-dot ${status.toLowerCase().replace(" ", "-")}`} />{status}{status === shipment.status && <span>Current</span>}</button>)}</div>}</div></td></tr>) : <tr><td className="empty-row" colSpan={7}>No shipments match your search.</td></tr>}</tbody>
             </table></div>
             <div className="table-footer"><span>Showing <b>{filteredShipments.length ? 1 : 0}–{filteredShipments.length}</b> of <b>{shipments.length}</b> shipments</span><div><button disabled aria-label="Previous page">‹</button><button className="current-page">1</button><button disabled aria-label="Next page">›</button></div></div>
           </section>
 
-          <footer className="admin-footer"><span>© 2026 Fleetora Freights</span><span>Need help? <a href="mailto:info@fleetorafreights.com">Contact support</a></span></footer>
+          <footer className="admin-footer"><span>© 2026 Prestige Freight Cargo</span><span>Need help? <a href="mailto:info@fleetorafreights.com">Contact support</a></span></footer>
         </main>
       </section>
 
-      {modalOpen && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setModalOpen(false); }}><section className="shipment-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title"><div className="modal-heading"><div><span className="modal-icon"><Icon name="box" /></span><h2 id="modal-title">Create a shipment</h2><p>Add a new delivery to your workspace.</p></div><button className="icon-button" aria-label="Close" onClick={() => setModalOpen(false)}><Icon name="close" /></button></div><form onSubmit={addShipment}><label>Customer or recipient<input autoFocus required value={newRecipient} onChange={(event) => setNewRecipient(event.target.value)} placeholder="e.g. Northstar Furniture" /></label><label>Route<input required value={newRoute} onChange={(event) => setNewRoute(event.target.value)} placeholder="e.g. Newark, US → Rotterdam, NL" /></label><div className="modal-form-actions"><button className="button-secondary" type="button" onClick={() => setModalOpen(false)}>Cancel</button><button className="button-primary" type="submit"><Icon name="plus" size={17} /> Create shipment</button></div></form></section></div>}
+      {modalOpen && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setModalOpen(false); }}><section className="shipment-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title"><div className="modal-heading"><div><span className="modal-icon"><Icon name="box" /></span><h2 id="modal-title">Create a shipment</h2><p>Add a new delivery to your workspace.</p></div><button className="icon-button" aria-label="Close" onClick={() => setModalOpen(false)}><Icon name="close" /></button></div><form onSubmit={addShipment}><label>Customer or recipient<input autoFocus required value={newRecipient} onChange={(event) => setNewRecipient(event.target.value)} placeholder="e.g. Northstar Furniture" /></label><div className="shipment-form-row"><label>From<select value={newOrigin} onChange={(event) => setNewOrigin(event.target.value)}>{CITY_OPTIONS.map((city) => <option key={city.name}>{city.name}</option>)}</select></label><label>To<select value={newDestination} onChange={(event) => setNewDestination(event.target.value)}>{CITY_OPTIONS.filter((city) => city.name !== newOrigin).map((city) => <option key={city.name}>{city.name}</option>)}</select></label></div><label>Service mode<select value={newMode} onChange={(event) => setNewMode(event.target.value as ShipmentMode)}><option>Road freight</option><option>Ocean freight</option><option>Air freight</option></select></label><div className="modal-form-actions"><button className="button-secondary" type="button" onClick={() => setModalOpen(false)}>Cancel</button><button className="button-primary" type="submit"><Icon name="plus" size={17} /> Create shipment</button></div></form></section></div>}
     </div>
   );
 }

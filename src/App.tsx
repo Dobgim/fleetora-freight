@@ -1,8 +1,12 @@
 import AdminDashboard from "./AdminDashboard";
+import ClientTracking from "./ClientTracking";
 
 export default function App() {
   if (window.location.pathname.startsWith("/admin")) {
     return <AdminDashboard />;
+  }
+  if (window.location.pathname.startsWith("/track")) {
+    return <ClientTracking />;
   }
 
   return (
@@ -10,7 +14,7 @@ export default function App() {
       <iframe
         className="block h-full w-full border-0"
         src="/home.html"
-        title="Fleetora Freights"
+        title="Prestige Freight Cargo"
         allow="clipboard-write"
       />
     </main>

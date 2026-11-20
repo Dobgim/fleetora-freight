@@ -1,6 +1,8 @@
 node_modules
 dist
 *.tsbuildinfo
+/.env*
+!/.env.example
 /bootstrap.smartsuppchat.com/
 /fonts.googleapis.com/
 /fonts.gstatic.com/
