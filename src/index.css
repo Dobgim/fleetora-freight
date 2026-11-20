@@ -1453,6 +1453,75 @@ body {
   background: #38ad7c;
 }
 
+.shipment-package-marker {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 2px 8px rgba(20,30,45,.4);
+  font-size: 19px;
+  line-height: 1;
+}
+
+.map-route-legend {
+  position: absolute;
+  bottom: 12px;
+  left: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px 12px;
+  max-width: calc(100% - 24px);
+  padding: 8px 10px;
+  border: 1px solid rgba(232,234,239,.9);
+  border-radius: 8px;
+  color: #535460;
+  background: rgba(255,255,255,.96);
+  box-shadow: 0 3px 12px rgba(34,37,55,.12);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.map-route-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.map-route-legend i {
+  display: inline-grid;
+  width: 11px;
+  height: 11px;
+  flex: none;
+  place-items: center;
+  border-radius: 50%;
+}
+
+.map-route-legend .map-legend-origin {
+  background: #15945b;
+}
+
+.map-route-legend .map-legend-destination {
+  background: #d94444;
+}
+
+.map-route-legend .map-legend-package {
+  width: 16px;
+  height: 16px;
+  background: #6558d3;
+  font-size: 10px;
+  line-height: 1;
+}
+
+.map-route-legend .map-legend-route {
+  width: 18px;
+  height: 3px;
+  border-radius: 3px;
+  background: #3478f6;
+}
+
 .map-error {
   position: absolute;
   inset: 14px;
