@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import type { User } from "@supabase/supabase-js";
+import AdminInvoices from "./AdminInvoices";
 import GoogleShipmentMap, { geocodeShipmentLocation } from "./GoogleShipmentMap";
 import { supabase } from "./supabase";
 import {
@@ -405,7 +406,7 @@ export default function AdminDashboard({ user, onSignOut }: { user: User; onSign
 
           {activePage === "Customers" && <section className="panel-card admin-data-page"><div className="panel-heading"><div><h2>Customers</h2><p>Recipients from existing shipment records</p></div><span className="table-count">{customers.length}</span></div>{customers.length ? <div className="table-scroll"><table className="shipment-table"><thead><tr><th>CUSTOMER</th><th>SHIPMENTS</th><th>LATEST TRACKING ID</th><th>STATUS</th></tr></thead><tbody>{customers.map((customer) => <tr key={customer.name.toLowerCase()}><td>{customer.name}</td><td>{customer.count}</td><td><a className="tracking-id" href={`/track?code=${encodeURIComponent(customer.latest.id)}`} target="_blank" rel="noreferrer">{customer.latest.id}</a></td><td>{customer.latest.status}</td></tr>)}</tbody></table></div> : <p className="admin-empty-state">Customers will appear here after shipments are created.</p>}</section>}
 
-          {activePage === "Invoices" && <section className="panel-card admin-empty-state"><h2>Invoices</h2><p>Invoice management is not connected to this workspace yet. No billing data is shown here.</p></section>}
+          {activePage === "Invoices" && <AdminInvoices shipments={shipments} />}
 
           {activePage === "Settings" && <section className="panel-card admin-settings-page"><div><span className="account-eyebrow">WORKSPACE ACCESS</span><h2>Account settings</h2><p>Administrator sign-in and security are managed by Supabase Auth.</p></div><dl><div><dt>Signed in as</dt><dd>{user.email}</dd></div><div><dt>Workspace</dt><dd>Prestige Freight Cargo</dd></div></dl><button className="button-secondary" onClick={() => void onSignOut()}>Sign out</button></section>}
 

@@ -21,6 +21,17 @@ export type Shipment = {
   destinationName: string;
   origin: Coordinate;
   destination: Coordinate;
+  senderName: string;
+  senderEmail: string;
+  senderPhone: string;
+  recipientEmail: string;
+  recipientPhone: string;
+  senderAddress: string;
+  recipientAddress: string;
+  shipDate: string;
+  weightKg: number;
+  pieceType: string;
+  packageDescription: string;
   mode: ShipmentMode;
   date: string;
   status: ShipmentStatus;
@@ -77,6 +88,7 @@ function formatDate(isoDate: string): string {
 }
 
 function toShipment(row: TrackedRow | ShipmentRow, dbId = ""): Shipment {
+  const details = "sender_name" in row ? row : null;
   return {
     dbId,
     id: row.tracking_number,
@@ -87,6 +99,17 @@ function toShipment(row: TrackedRow | ShipmentRow, dbId = ""): Shipment {
     destinationName: row.destination_name,
     origin: { lat: row.origin_lat, lng: row.origin_lng },
     destination: { lat: row.destination_lat, lng: row.destination_lng },
+    senderName: details?.sender_name ?? "",
+    senderEmail: details?.sender_email ?? "",
+    senderPhone: details?.sender_phone ?? "",
+    recipientEmail: details?.recipient_email ?? "",
+    recipientPhone: details?.recipient_phone ?? "",
+    senderAddress: details?.sender_address ?? "",
+    recipientAddress: details?.recipient_address ?? "",
+    shipDate: details?.ship_date ?? "",
+    weightKg: details?.weight_kg ?? 0,
+    pieceType: details?.piece_type ?? "",
+    packageDescription: details?.package_description ?? "",
     mode: row.mode as ShipmentMode,
     date: formatDate(row.estimated_delivery),
     status: row.status as ShipmentStatus,

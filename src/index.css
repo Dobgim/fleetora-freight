@@ -2534,6 +2534,144 @@ body {
   margin-bottom: 14px;
 }
 
+.invoice-builder {
+  padding: 22px;
+}
+
+.invoice-builder > .panel-heading {
+  align-items: flex-start;
+  margin-bottom: 20px;
+}
+
+.invoice-builder > .panel-heading p {
+  margin: 6px 0 0;
+  color: #858796;
+  font-size: 11px;
+}
+
+.invoice-form {
+  display: grid;
+  gap: 18px;
+}
+
+.invoice-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 16px;
+}
+
+.invoice-form label {
+  display: grid;
+  gap: 6px;
+  color: #555563;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.invoice-form input,
+.invoice-form select {
+  width: 100%;
+  min-width: 0;
+  height: 39px;
+  padding: 0 11px;
+  border: 1px solid #e6e7ed;
+  border-radius: 6px;
+  outline: none;
+  color: #353541;
+  background: #fff;
+  font: inherit;
+  font-size: 12px;
+}
+
+.invoice-form input:focus,
+.invoice-form select:focus {
+  border-color: #8e84df;
+  box-shadow: 0 0 0 3px rgba(101,88,211,.09);
+}
+
+.invoice-form input[readonly] {
+  color: #777987;
+  background: #f7f7fa;
+}
+
+.invoice-shipment-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid #e8e9ef;
+  border-radius: 8px;
+  background: #fafaff;
+}
+
+.invoice-shipment-summary > div {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.invoice-shipment-summary span,
+.invoice-total-preview > span {
+  color: #858796;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.invoice-shipment-summary strong {
+  overflow-wrap: anywhere;
+  color: #282835;
+  font-size: 13px;
+}
+
+.invoice-shipment-summary small,
+.invoice-total-preview small {
+  color: #777987;
+  font-size: 11px;
+}
+
+.invoice-total-preview {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 14px;
+  padding: 14px 16px;
+  border-top: 1px solid #eceef2;
+  border-bottom: 1px solid #eceef2;
+}
+
+.invoice-total-preview strong {
+  color: #282835;
+  font-size: 20px;
+}
+
+.invoice-form-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.invoice-form-actions button:disabled {
+  cursor: wait;
+  opacity: .65;
+}
+
+.invoice-empty-state {
+  padding: 20px 0 4px;
+  color: #777987;
+}
+
+.invoice-empty-state h3 {
+  margin: 0 0 6px;
+  color: #282835;
+  font-size: 15px;
+}
+
+.invoice-empty-state p {
+  margin: 0;
+  font-size: 12px;
+}
+
 .admin-empty-state {
   color: #777987;
 }
@@ -3014,9 +3152,25 @@ body {
   }
 
   .admin-data-page,
+  .invoice-builder,
   .admin-settings-page,
   .admin-empty-state {
     padding: 16px;
+  }
+
+  .invoice-form-grid,
+  .invoice-shipment-summary {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .invoice-total-preview {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+
+  .invoice-form-actions {
+    align-items: stretch;
+    flex-direction: column-reverse;
   }
 
   .admin-settings-page dl > div {

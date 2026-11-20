@@ -35,6 +35,8 @@ To create the administrator:
 2. Run `supabase/promote-admin.sql` in that project's SQL Editor.
 3. Sign in at `/admin`.
 
+The admin **Invoices** page creates a downloadable PDF from an existing shipment. Enter the subtotal, currency, tax rate, and due date; the invoice QR code opens that shipment's public tracking page.
+
 To clear all existing shipment records, first confirm the project ref and take a backup, then run `supabase/clean-all-shipments.sql` manually in that project's SQL Editor. This permanently deletes every shipment and customer tracking record. It is intentionally not part of an automatic migration.
 
 ## Vercel deployment
