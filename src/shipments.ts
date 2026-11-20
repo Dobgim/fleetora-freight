@@ -297,11 +297,29 @@ export async function createShipment(input: ShipmentInput): Promise<{ shipment: 
 }
 
 export async function updateShipmentDetails(dbId: string, input: ShipmentInput): Promise<{ shipment: Shipment; notificationError: string | null }> {
-  const { data, error } = await requireClient()
+  const client = requireClient();
+  const { data: details, error: detailsError } = await client
     .from("shipments")
     .update(shipmentValues(input))
     .eq("id", dbId)
     .select("*")
+    .single();
+  if (detailsError) throw detailsError;
+
+  if (details.status !== input.status) {
+    const { error: statusError } = await client.rpc("set_shipment_status", {
+      p_shipment_id: dbId,
+      p_status: input.status,
+    });
+    if (statusError) {
+      throw new Error(`Shipment details were saved, but its status could not be changed: ${statusError.message}`);
+    }
+  }
+
+  const { data, error } = await client
+    .from("shipments")
+    .select("*")
+    .eq("id", dbId)
     .single();
   if (error) throw error;
   const notificationError = await notifyShipment(dbId, "updated");
